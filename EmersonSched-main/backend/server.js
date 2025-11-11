@@ -31,6 +31,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/timing', require('./routes/timing'));
 app.use('/api/timetable', require('./routes/timetable'));
 app.use('/api/exam', require('./routes/exam'));
+app.use('/api/rooms', require('./routes/rooms'));
 
 // ✅ Add this BEFORE 404 handler
 const requestRoutes = require('./routes/requestRoutes');

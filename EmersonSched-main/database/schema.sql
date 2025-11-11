@@ -341,6 +341,23 @@ INSERT INTO `rooms` (`id`, `name`, `type`, `capacity`, `building`, `resources`, 
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `room_assignments`
+--
+
+CREATE TABLE `room_assignments` (
+  `id` int(11) NOT NULL,
+  `room_id` int(11) NOT NULL,
+  `section_id` int(11) NOT NULL,
+  `time_slot_id` int(11) NOT NULL,
+  `semester` varchar(50) NOT NULL,
+  `status` enum('reserved','available','blocked') DEFAULT 'reserved',
+  `assigned_by` char(36) DEFAULT NULL,
+  `assigned_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `sections`
 --
 
@@ -388,6 +405,22 @@ INSERT INTO `sections` (`id`, `major_id`, `name`, `semester`, `student_strength`
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `slot_reservations`
+--
+
+CREATE TABLE `slot_reservations` (
+  `id` int(11) NOT NULL,
+  `course_request_id` int(11) NOT NULL,
+  `instructor_id` char(36) NOT NULL,
+  `time_slot_id` int(11) NOT NULL,
+  `room_assignment_id` int(11) NOT NULL,
+  `status` enum('reserved','cancelled') DEFAULT 'reserved',
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `student_enrollments`
 --
 
@@ -403,14 +436,17 @@ CREATE TABLE `student_enrollments` (
 
 --
 -- Table structure for table `time_slots`
+-- ENHANCED: Added day_of_week and slot_length_minutes for dynamic generation
 --
 
 CREATE TABLE `time_slots` (
   `id` int(11) NOT NULL,
   `shift` enum('morning','evening','weekend') NOT NULL,
+  `day_of_week` enum('monday','tuesday','wednesday','thursday','friday','saturday','sunday') DEFAULT NULL,
   `start_time` time NOT NULL,
   `end_time` time NOT NULL,
   `slot_label` varchar(50) DEFAULT NULL,
+  `slot_length_minutes` int(11) DEFAULT 60,
   `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf16le COLLATE=utf16le_general_ci;
 
@@ -418,27 +454,42 @@ CREATE TABLE `time_slots` (
 -- Dumping data for table `time_slots`
 --
 
-INSERT INTO `time_slots` (`id`, `shift`, `start_time`, `end_time`, `slot_label`, `created_at`) VALUES
-(1, 'morning', '08:00:00', '09:00:00', '08:00 - 09:00', '2025-10-26 14:57:49'),
-(2, 'morning', '09:00:00', '10:00:00', '09:00 - 10:00', '2025-10-26 14:57:49'),
-(3, 'morning', '10:00:00', '11:00:00', '10:00 - 11:00', '2025-10-26 14:57:49'),
-(4, 'morning', '11:00:00', '12:00:00', '11:00 - 12:00', '2025-10-26 14:57:49'),
-(5, 'morning', '12:00:00', '13:00:00', '12:00 - 13:00', '2025-10-26 14:57:49'),
-(6, 'morning', '13:00:00', '14:00:00', '13:00 - 14:00', '2025-10-26 14:57:49'),
-(7, 'morning', '14:00:00', '15:00:00', '14:00 - 15:00', '2025-10-26 14:57:49'),
-(8, 'morning', '15:00:00', '16:00:00', '15:00 - 16:00', '2025-10-26 14:57:49'),
-(9, 'morning', '16:00:00', '17:00:00', '16:00 - 17:00', '2025-10-26 14:57:49'),
-(10, 'evening', '14:00:00', '15:00:00', '14:00 - 15:00', '2025-10-26 14:57:49'),
-(11, 'evening', '15:00:00', '16:00:00', '15:00 - 16:00', '2025-10-26 14:57:49'),
-(12, 'evening', '16:00:00', '17:00:00', '16:00 - 17:00', '2025-10-26 14:57:49'),
-(13, 'weekend', '09:00:00', '10:00:00', '09:00 - 10:00', '2025-10-26 14:57:49'),
-(14, 'weekend', '10:00:00', '11:00:00', '10:00 - 11:00', '2025-10-26 14:57:49'),
-(15, 'weekend', '11:00:00', '12:00:00', '11:00 - 12:00', '2025-10-26 14:57:49'),
-(16, 'weekend', '12:00:00', '13:00:00', '12:00 - 13:00', '2025-10-26 14:57:49'),
-(17, 'weekend', '13:00:00', '14:00:00', '13:00 - 14:00', '2025-10-26 14:57:49'),
-(18, 'weekend', '14:00:00', '15:00:00', '14:00 - 15:00', '2025-10-26 14:57:49'),
-(19, 'weekend', '15:00:00', '16:00:00', '15:00 - 16:00', '2025-10-26 14:57:49'),
-(20, 'weekend', '16:00:00', '17:00:00', '16:00 - 17:00', '2025-10-26 14:57:49');
+INSERT INTO `time_slots` (`id`, `shift`, `start_time`, `end_time`, `slot_label`, `slot_length_minutes`, `created_at`) VALUES
+(1, 'morning', '08:00:00', '09:00:00', '08:00 - 09:00', 60, '2025-10-26 14:57:49'),
+(2, 'morning', '09:00:00', '10:00:00', '09:00 - 10:00', 60, '2025-10-26 14:57:49'),
+(3, 'morning', '10:00:00', '11:00:00', '10:00 - 11:00', 60, '2025-10-26 14:57:49'),
+(4, 'morning', '11:00:00', '12:00:00', '11:00 - 12:00', 60, '2025-10-26 14:57:49'),
+(5, 'morning', '12:00:00', '13:00:00', '12:00 - 13:00', 60, '2025-10-26 14:57:49'),
+(6, 'morning', '13:00:00', '14:00:00', '13:00 - 14:00', 60, '2025-10-26 14:57:49'),
+(7, 'morning', '14:00:00', '15:00:00', '14:00 - 15:00', 60, '2025-10-26 14:57:49'),
+(8, 'morning', '15:00:00', '16:00:00', '15:00 - 16:00', 60, '2025-10-26 14:57:49'),
+(9, 'morning', '16:00:00', '17:00:00', '16:00 - 17:00', 60, '2025-10-26 14:57:49'),
+(10, 'evening', '14:00:00', '15:00:00', '14:00 - 15:00', 60, '2025-10-26 14:57:49'),
+(11, 'evening', '15:00:00', '16:00:00', '15:00 - 16:00', 60, '2025-10-26 14:57:49'),
+(12, 'evening', '16:00:00', '17:00:00', '16:00 - 17:00', 60, '2025-10-26 14:57:49'),
+(13, 'weekend', '09:00:00', '10:00:00', '09:00 - 10:00', 60, '2025-10-26 14:57:49'),
+(14, 'weekend', '10:00:00', '11:00:00', '10:00 - 11:00', 60, '2025-10-26 14:57:49'),
+(15, 'weekend', '11:00:00', '12:00:00', '11:00 - 12:00', 60, '2025-10-26 14:57:49'),
+(16, 'weekend', '12:00:00', '13:00:00', '12:00 - 13:00', 60, '2025-10-26 14:57:49'),
+(17, 'weekend', '13:00:00', '14:00:00', '13:00 - 14:00', 60, '2025-10-26 14:57:49'),
+(18, 'weekend', '14:00:00', '15:00:00', '14:00 - 15:00', 60, '2025-10-26 14:57:49'),
+(19, 'weekend', '15:00:00', '16:00:00', '15:00 - 16:00', 60, '2025-10-26 14:57:49'),
+(20, 'weekend', '16:00:00', '17:00:00', '16:00 - 17:00', 60, '2025-10-26 14:57:49');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `time_slot_generation_settings`
+--
+
+CREATE TABLE `time_slot_generation_settings` (
+  `id` int(11) NOT NULL,
+  `shift` enum('morning','evening','weekend') NOT NULL,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  `distribution_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`distribution_json`)),
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -582,11 +633,31 @@ ALTER TABLE `rooms`
   ADD UNIQUE KEY `name` (`name`);
 
 --
+-- Indexes for table `room_assignments`
+--
+ALTER TABLE `room_assignments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_room_assignment` (`room_id`,`time_slot_id`),
+  ADD KEY `idx_section_slot` (`section_id`,`time_slot_id`),
+  ADD UNIQUE KEY `unique_room_time_slot` (`room_id`,`time_slot_id`,`semester`);
+
+--
 -- Indexes for table `sections`
 --
 ALTER TABLE `sections`
   ADD PRIMARY KEY (`id`),
   ADD KEY `major_id` (`major_id`);
+
+--
+-- Indexes for table `slot_reservations`
+--
+ALTER TABLE `slot_reservations`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_reservation_course_request` (`course_request_id`),
+  ADD KEY `idx_reservation_instructor` (`instructor_id`),
+  ADD KEY `idx_reservation_time_slot` (`time_slot_id`),
+  ADD KEY `idx_reservation_room` (`room_assignment_id`),
+  ADD UNIQUE KEY `unique_reservation` (`course_request_id`,`time_slot_id`);
 
 --
 -- Indexes for table `student_enrollments`
@@ -601,6 +672,13 @@ ALTER TABLE `student_enrollments`
 --
 ALTER TABLE `time_slots`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `time_slot_generation_settings`
+--
+ALTER TABLE `time_slot_generation_settings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_shift` (`shift`);
 
 --
 -- Indexes for table `university_timings`
@@ -682,10 +760,22 @@ ALTER TABLE `rooms`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
+-- AUTO_INCREMENT for table `room_assignments`
+--
+ALTER TABLE `room_assignments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `sections`
 --
 ALTER TABLE `sections`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+
+--
+-- AUTO_INCREMENT for table `slot_reservations`
+--
+ALTER TABLE `slot_reservations`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `student_enrollments`
@@ -698,6 +788,12 @@ ALTER TABLE `student_enrollments`
 --
 ALTER TABLE `time_slots`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+
+--
+-- AUTO_INCREMENT for table `time_slot_generation_settings`
+--
+ALTER TABLE `time_slot_generation_settings`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `university_timings`
@@ -765,10 +861,28 @@ ALTER TABLE `notifications`
   ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `room_assignments`
+--
+ALTER TABLE `room_assignments`
+  ADD CONSTRAINT `fk_room_assignments_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_room_assignments_section` FOREIGN KEY (`section_id`) REFERENCES `sections` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_room_assignments_time_slot` FOREIGN KEY (`time_slot_id`) REFERENCES `time_slots` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_room_assignments_user` FOREIGN KEY (`assigned_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `sections`
 --
 ALTER TABLE `sections`
   ADD CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`major_id`) REFERENCES `majors` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `slot_reservations`
+--
+ALTER TABLE `slot_reservations`
+  ADD CONSTRAINT `fk_slot_reservations_course_request` FOREIGN KEY (`course_request_id`) REFERENCES `course_requests` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_slot_reservations_instructor` FOREIGN KEY (`instructor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_slot_reservations_room_assignment` FOREIGN KEY (`room_assignment_id`) REFERENCES `room_assignments` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_slot_reservations_time_slot` FOREIGN KEY (`time_slot_id`) REFERENCES `time_slots` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `student_enrollments`
@@ -776,6 +890,7 @@ ALTER TABLE `sections`
 ALTER TABLE `student_enrollments`
   ADD CONSTRAINT `student_enrollments_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `student_enrollments_ibfk_2` FOREIGN KEY (`section_id`) REFERENCES `sections` (`id`) ON DELETE CASCADE;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -107,36 +107,113 @@ const createCourse = async (req, res) => {
 
 const getCourses = async (req, res) => {
   try {
-    const { major_id, semester } = req.query;
+    const { program, major, semester, major_id, shift } = req.query;
 
-    let query = `
-      SELECT c.id, c.name, c.code, c.credit_hours, c.type,
-             co.semester, m.name as major_name, p.name as program_name
-      FROM course_offerings co
-      JOIN courses c ON co.course_id = c.id
-      JOIN majors m ON co.major_id = m.id
-      JOIN programs p ON m.program_id = p.id
-      WHERE 1=1
-    `;
-    const params = [];
+    // Pagination
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 10, 1);
+    const offset = (page - 1) * limit;
 
-    if (major_id) {
-      query += ' AND co.major_id = ?';
-      params.push(major_id);
+    let baseWhere = 'WHERE 1=1';
+    const filterParams = [];
+
+    // Filter by program name
+    if (program) {
+      baseWhere += ' AND p.name = ?';
+      filterParams.push(program);
     }
 
+    // Filter by major name
+    if (major) {
+      baseWhere += ' AND m.name = ?';
+      filterParams.push(major);
+    }
+
+    // Filter by semester
     if (semester) {
-      query += ' AND co.semester = ?';
-      params.push(semester);
+      baseWhere += ' AND co.semester = ?';
+      filterParams.push(semester);
     }
 
-    query += ' ORDER BY co.semester, c.name';
+    // Legacy support for major_id parameter
+    if (major_id) {
+      baseWhere += ' AND co.major_id = ?';
+      filterParams.push(major_id);
+    }
 
-    const [courses] = await db.query(query, params);
-    res.json({ courses });
+    // Filter by program shift (e.g., morning/evening)
+    if (shift) {
+      baseWhere += ' AND p.shift = ?';
+      filterParams.push(shift);
+    }
+
+    // Count total distinct courses for pagination
+    const countQuery = `
+      SELECT COUNT(DISTINCT c.id) AS total
+      FROM courses c
+      LEFT JOIN course_offerings co ON c.id = co.course_id
+      LEFT JOIN majors m ON co.major_id = m.id
+      LEFT JOIN programs p ON m.program_id = p.id
+      ${baseWhere}
+    `;
+    const [countRows] = await db.query(countQuery, filterParams);
+    const totalRecords = countRows[0]?.total || 0;
+    const totalPages = Math.max(Math.ceil(totalRecords / limit), 1);
+
+    // Fetch paginated data
+    const dataQuery = `
+      SELECT c.id, c.name, c.code, c.credit_hours, c.type,
+             GROUP_CONCAT(DISTINCT co.semester SEPARATOR ', ') as semesters,
+             GROUP_CONCAT(DISTINCT m.name SEPARATOR ', ') as major_names,
+             GROUP_CONCAT(DISTINCT p.name SEPARATOR ', ') as program_names
+      FROM courses c
+      LEFT JOIN course_offerings co ON c.id = co.course_id
+      LEFT JOIN majors m ON co.major_id = m.id
+      LEFT JOIN programs p ON m.program_id = p.id
+      ${baseWhere}
+      GROUP BY c.id
+      ORDER BY c.name
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...filterParams, limit, offset];
+    const [rows] = await db.query(dataQuery, dataParams);
+
+    res.json({
+      data: rows,
+      totalPages,
+      currentPage: page,
+      totalRecords
+    });
   } catch (error) {
     console.error('Get courses error:', error);
     res.status(500).json({ error: 'Failed to get courses' });
+  }
+};
+
+// Update Course (name, code, credit_hours, type) and optionally offering (major_id, semester)
+const updateCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, credit_hours, type } = req.body;
+    await db.query(
+      'UPDATE courses SET name = ?, code = ?, credit_hours = ?, type = ? WHERE id = ?',
+      [name, code, credit_hours, type, id]
+    );
+    res.json({ message: 'Course updated' });
+  } catch (error) {
+    console.error('Update course error:', error);
+    res.status(500).json({ error: 'Failed to update course' });
+  }
+};
+
+const deleteCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query('DELETE FROM courses WHERE id = ?', [id]);
+    res.json({ message: 'Course deleted' });
+  } catch (error) {
+    console.error('Delete course error:', error);
+    res.status(500).json({ error: 'Failed to delete course' });
   }
 };
 
@@ -159,39 +236,123 @@ const createSection = async (req, res) => {
 
 const getSections = async (req, res) => {
   try {
-    const { major_id, semester, shift } = req.query;
+    const { major_id, semester, shift, program, major } = req.query;
 
-    let query = `
+    // Pagination
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 10, 1);
+    const offset = (page - 1) * limit;
+
+    let baseWhere = 'WHERE 1=1';
+    const filterParams = [];
+
+    if (major_id) {
+      baseWhere += ' AND s.major_id = ?';
+      filterParams.push(major_id);
+    }
+
+    // Filter by program name
+    if (program) {
+      baseWhere += ' AND p.name = ?';
+      filterParams.push(program);
+    }
+
+    // Filter by major name
+    if (major) {
+      baseWhere += ' AND m.name = ?';
+      filterParams.push(major);
+    }
+
+    if (semester) {
+      baseWhere += ' AND s.semester = ?';
+      filterParams.push(semester);
+    }
+
+    if (shift) {
+      baseWhere += ' AND s.shift = ?';
+      filterParams.push(shift);
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM sections s
+      JOIN majors m ON s.major_id = m.id
+      JOIN programs p ON m.program_id = p.id
+      ${baseWhere}
+    `;
+    const [countRows] = await db.query(countQuery, filterParams);
+    const totalRecords = countRows[0]?.total || 0;
+    const totalPages = Math.max(Math.ceil(totalRecords / limit), 1);
+
+    const dataQuery = `
       SELECT s.*, m.name as major_name, p.name as program_name 
       FROM sections s
       JOIN majors m ON s.major_id = m.id
       JOIN programs p ON m.program_id = p.id
-      WHERE 1=1
+      ${baseWhere}
+      ORDER BY s.name
+      LIMIT ? OFFSET ?
     `;
-    const params = [];
+    const dataParams = [...filterParams, limit, offset];
+    const [rows] = await db.query(dataQuery, dataParams);
 
-    if (major_id) {
-      query += ' AND s.major_id = ?';
-      params.push(major_id);
-    }
-
-    if (semester) {
-      query += ' AND s.semester = ?';
-      params.push(semester);
-    }
-
-    if (shift) {
-      query += ' AND s.shift = ?';
-      params.push(shift);
-    }
-
-    query += ' ORDER BY s.name';
-
-    const [sections] = await db.query(query, params);
-    res.json({ sections });
+    res.json({
+      data: rows,
+      totalPages,
+      currentPage: page,
+      totalRecords
+    });
   } catch (error) {
     console.error('Get sections error:', error);
     res.status(500).json({ error: 'Failed to get sections' });
+  }
+};
+
+const updateSection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { major_id, name, semester, student_strength, shift } = req.body;
+
+    // Defensive checks
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ error: 'Section id is required and must be a number' });
+    }
+
+    const [result] = await db.query(
+      'UPDATE sections SET major_id = ?, name = ?, semester = ?, student_strength = ?, shift = ? WHERE id = ? LIMIT 1',
+      [major_id, name, semester, student_strength, shift, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Section not found' });
+    }
+
+    res.json({ message: 'Section updated', id });
+  } catch (error) {
+    console.error('Update section error:', error);
+    res.status(500).json({ error: 'Failed to update section' });
+  }
+};
+
+const deleteSection = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Defensive checks
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ error: 'Section id is required and must be a number' });
+    }
+
+    const [result] = await db.query('DELETE FROM sections WHERE id = ? LIMIT 1', [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Section not found' });
+    }
+
+    res.json({ message: 'Section deleted', id });
+  } catch (error) {
+    console.error('Delete section error:', error);
+    res.status(500).json({ error: 'Failed to delete section' });
   }
 };
 
@@ -231,6 +392,32 @@ const getRooms = async (req, res) => {
   } catch (error) {
     console.error('Get rooms error:', error);
     res.status(500).json({ error: 'Failed to get rooms' });
+  }
+};
+
+const updateRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type, capacity, building, resources } = req.body;
+    await db.query(
+      'UPDATE rooms SET name = ?, type = ?, capacity = ?, building = ?, resources = ? WHERE id = ?',
+      [name, type, capacity, building, JSON.stringify(resources || {}), id]
+    );
+    res.json({ message: 'Room updated' });
+  } catch (error) {
+    console.error('Update room error:', error);
+    res.status(500).json({ error: 'Failed to update room' });
+  }
+};
+
+const deleteRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query('DELETE FROM rooms WHERE id = ?', [id]);
+    res.json({ message: 'Room deleted' });
+  } catch (error) {
+    console.error('Delete room error:', error);
+    res.status(500).json({ error: 'Failed to delete room' });
   }
 };
 
@@ -287,10 +474,16 @@ module.exports = {
   getMajors,
   createCourse,
   getCourses,
+  updateCourse,
+  deleteCourse,
   createSection,
   getSections,
+  updateSection,
+  deleteSection,
   createRoom,
   getRooms,
+  updateRoom,
+  deleteRoom,
   getInstructors,
   getDashboardStats
 };

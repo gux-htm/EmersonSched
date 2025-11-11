@@ -63,25 +63,42 @@ export const adminAPI = {
   // Courses
   createCourse: (data: any) => api.post('/admin/courses', data),
   getCourses: (params?: any) => api.get('/admin/courses', { params }),
+  updateCourse: (id: number, data: any) => api.put(`/admin/courses/${id}`, data),
+  deleteCourse: (id: number) => api.delete(`/admin/courses/${id}`),
   
   // Sections
   createSection: (data: any) => api.post('/admin/sections', data),
   getSections: (params?: any) => api.get('/admin/sections', { params }),
+  updateSection: (id: number, data: any) => api.put(`/admin/sections/${id}`, data),
+  deleteSection: (id: number) => api.delete(`/admin/sections/${id}`),
   
   // Rooms
   createRoom: (data: any) => api.post('/admin/rooms', data),
   getRooms: (type?: string) => api.get('/admin/rooms', { params: { type } }),
+  updateRoom: (id: number, data: any) => api.put(`/admin/rooms/${id}`, data),
+  deleteRoom: (id: number) => api.delete(`/admin/rooms/${id}`),
   
   // Instructors
   getInstructors: () => api.get('/admin/instructors'),
+};
+
+// Room Assignment APIs
+export const roomAPI = {
+  autoAssign: (data: any) => api.post('/rooms/auto-assign', data),
+  getAssignments: (params?: any) => api.get('/rooms/assignments', { params }),
+  editAssignment: (id: number, data: any) => api.put(`/rooms/assignments/${id}`, data),
+  deleteAssignment: (id: number) => api.delete(`/rooms/assignments/${id}`),
 };
 
 // Timing APIs
 export const timingAPI = {
   setUniversityTimings: (data: any) => api.post('/timing/university-timings', data),
   getUniversityTimings: () => api.get('/timing/university-timings'),
-  getTimeSlots: (shift?: string) => api.get('/timing/time-slots', { params: { shift } }),
+  getTimeSlots: (shift?: string, day_of_week?: string) => api.get('/timing/time-slots', { params: { shift, day_of_week } }),
   resetTimeSlots: () => api.post('/timing/reset-time-slots'),
+  generateSlots: (data: any) => api.post('/timing/generate-slots', data),
+  setSlotSettings: (data: any) => api.post('/timing/slot-settings', data),
+  getSlotSettings: () => api.get('/timing/slot-settings'),
 };
 
 // Timetable APIs
@@ -111,4 +128,5 @@ export const requestAPI = {
   getAll: () => api.get('/course-requests'),
   getForInstructor: () => api.get('/course-requests/instructor'),
   accept: (data: any) => api.post('/course-requests/accept', data),
+  undoAccept: (data: any) => api.post('/course-requests/undo-accept', data),
 };

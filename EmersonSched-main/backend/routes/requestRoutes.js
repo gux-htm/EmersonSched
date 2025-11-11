@@ -11,4 +11,7 @@ router.get('/', auth, isAdmin, requestController.getAllRequests);
 router.get('/instructor', auth, isInstructor, requestController.getInstructorRequests);
 router.post('/accept', auth, isInstructor, requestController.acceptCourseRequest);
 
+// --- Undo/Action routes ---
+router.post('/undo-accept', auth, requestController.undoAcceptCourseRequest);
+
 module.exports = router;

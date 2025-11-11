@@ -21,14 +21,20 @@ router.get('/majors', adminController.getMajors);
 // Courses
 router.post('/courses', adminController.createCourse);
 router.get('/courses', adminController.getCourses);
+router.put('/courses/:id', adminController.updateCourse);
+router.delete('/courses/:id', adminController.deleteCourse);
 
 // Sections
 router.post('/sections', adminController.createSection);
 router.get('/sections', adminController.getSections);
+router.put('/sections/:id', adminController.updateSection);
+router.delete('/sections/:id', adminController.deleteSection);
 
 // Rooms
 router.post('/rooms', adminController.createRoom);
 router.get('/rooms', adminController.getRooms);
+router.put('/rooms/:id', adminController.updateRoom);
+router.delete('/rooms/:id', adminController.deleteRoom);
 
 // Instructors
 router.get('/instructors', adminController.getInstructors);
