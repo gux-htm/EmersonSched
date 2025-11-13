@@ -37,6 +37,9 @@ app.use('/api/rooms', require('./routes/rooms'));
 const requestRoutes = require('./routes/requestRoutes');
 app.use('/api/course-requests', requestRoutes);
 
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'EmersonSched API is running' });
@@ -56,7 +59,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5050;
 app.listen(PORT, () => {
   console.log('=================================');
   console.log('🎓 EmersonSched API Server');

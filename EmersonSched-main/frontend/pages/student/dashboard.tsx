@@ -1,20 +1,38 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { FiCalendar, FiBook, FiClock } from 'react-icons/fi';
+import { FiCalendar, FiBook, FiBell } from 'react-icons/fi';
 import Link from 'next/link';
+import api from '@/lib/api';
+import { toast } from 'react-toastify';
 
 export default function StudentDashboard() {
   const { user, isStudent } = useAuth();
   const router = useRouter();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isStudent && user?.role !== 'admin') {
       router.push('/login');
+      return;
     }
+    loadNotifications();
   }, [isStudent, user, router]);
+
+  const loadNotifications = async () => {
+    try {
+      const res = await api.get('/notifications');
+      setNotifications(res.data.notifications || []);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      toast.error('Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const quickLinks = [
     {
@@ -76,9 +94,37 @@ export default function StudentDashboard() {
 
         <div className="card">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Notifications</h2>
-          <div className="text-center py-8 text-gray-500">
-            No new notifications
-          </div>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="spinner"></div>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No new notifications
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {notifications.map((notification) => (
+                <motion.div
+                  key={notification.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-gray-50 rounded-lg flex items-start space-x-4"
+                >
+                  <div className="bg-blue-100 p-2 rounded-full">
+                    <FiBell className="text-blue-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800">{notification.title}</h4>
+                    <p className="text-gray-600 text-sm">{notification.message}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(notification.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </Layout>

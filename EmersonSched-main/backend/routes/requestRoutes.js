@@ -13,5 +13,6 @@ router.post('/accept', auth, isInstructor, requestController.acceptCourseRequest
 
 // --- Undo/Action routes ---
 router.post('/undo-accept', auth, requestController.undoAcceptCourseRequest);
+router.post('/reassign', auth, isAdmin, requestController.reassignCourseRequest);
 
 module.exports = router;

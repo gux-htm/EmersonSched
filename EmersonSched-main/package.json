@@ -9,7 +9,11 @@
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
-  "keywords": ["timetable", "university", "scheduling"],
+  "keywords": [
+    "timetable",
+    "university",
+    "scheduling"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {

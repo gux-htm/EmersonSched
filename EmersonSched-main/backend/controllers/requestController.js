@@ -488,6 +488,13 @@ exports.acceptCourseRequest = async (req, res) => {
         message: 'Failed to update course request. Request may have been modified or does not exist.' 
       });
     }
+
+    // Cancel other pending requests for the same course
+    await connection.query(
+      `DELETE FROM course_requests
+       WHERE course_id = ? AND section_id = ? AND status = 'pending'`,
+      [request.course_id, request.section_id]
+    );
     
     await connection.commit();
     
@@ -500,6 +507,74 @@ exports.acceptCourseRequest = async (req, res) => {
     await connection.rollback();
     console.error('Error accepting course request:', err);
     res.status(500).json({ message: 'Server error while accepting request.' });
+  } finally {
+    connection.release();
+  }
+};
+
+// ==========================
+// POST /api/course-requests/reassign
+// ==========================
+exports.reassignCourseRequest = async (req, res) => {
+  const { course_request_id, selected_instructors, admin_id } = req.body;
+
+  if (!course_request_id || !selected_instructors || !Array.isArray(selected_instructors) || selected_instructors.length === 0) {
+    return res.status(400).json({ message: 'Missing required fields.' });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Get the original course request
+    const [[originalRequest]] = await connection.query('SELECT * FROM course_requests WHERE id = ?', [course_request_id]);
+
+    if (!originalRequest) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Original course request not found.' });
+    }
+
+    // Delete the original accepted request
+    await connection.query('DELETE FROM course_requests WHERE id = ?', [course_request_id]);
+
+    // Create new pending requests for the selected instructors
+    const newRequests = selected_instructors.map(instructorId => [
+      originalRequest.course_id,
+      originalRequest.section_id,
+      instructorId,
+      'pending',
+      originalRequest.preferences,
+      originalRequest.major_id,
+      originalRequest.semester,
+      originalRequest.shift,
+      originalRequest.time_slot,
+      admin_id
+    ]);
+
+    const query = `
+      INSERT INTO course_requests
+      (course_id, section_id, instructor_id, status, preferences, major_id, semester, shift, time_slot, requested_by)
+      VALUES ?
+    `;
+    await connection.query(query, [newRequests]);
+
+    // Send notification to the original instructor
+    if (originalRequest.instructor_id) {
+      const notification = {
+        user_id: originalRequest.instructor_id,
+        type: 'reschedule',
+        title: 'Course Reassigned',
+        message: `You have been unassigned from the course.`
+      };
+      await connection.query('INSERT INTO notifications SET ?', notification);
+    }
+
+    await connection.commit();
+    res.status(200).json({ message: 'Course reassigned successfully.' });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error reassigning course:', err);
+    res.status(500).json({ message: 'Server error while reassigning course.' });
   } finally {
     connection.release();
   }

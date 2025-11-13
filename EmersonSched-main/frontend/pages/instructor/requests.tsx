@@ -5,16 +5,20 @@ import { useRouter } from 'next/router';
 import { requestAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FiCheck, FiX, FiSend, FiClock } from 'react-icons/fi';
+import { FiCheck, FiX, FiSend, FiClock, FiEdit } from 'react-icons/fi';
+import RescheduleModal from '@/components/RescheduleModal';
 
 export default function CourseRequests() {
   const { user, isInstructor } = useAuth();
   const router = useRouter();
-  const [requests, setRequests] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [acceptedRequests, setAcceptedRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
   const [sending, setSending] = useState(false);
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+  const [requestToReschedule, setRequestToReschedule] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -28,8 +32,16 @@ export default function CourseRequests() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const response = await requestAPI.getForInstructor();
-      setRequests(response.data || []);
+      const [pendingRes, allRes] = await Promise.all([
+        requestAPI.getForInstructor(),
+        requestAPI.getAll()
+      ]);
+      const allRequests = allRes.data.requests || [];
+      const accepted = allRequests.filter(
+        (r: any) => r.status === 'accepted' && r.instructor_id === user?.id
+      );
+      setPendingRequests(pendingRes.data || []);
+      setAcceptedRequests(accepted);
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load course requests');
@@ -137,18 +149,16 @@ export default function CourseRequests() {
           )}
         </div>
 
-        {requests.length === 0 ? (
+        {pendingRequests.length === 0 && acceptedRequests.length === 0 ? (
           <div className="card text-center py-12">
-            <p className="text-gray-600 text-lg">No pending course requests available</p>
+            <p className="text-gray-600 text-lg">No course requests available</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Requests List */}
+            {/* Pending Requests List */}
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-gray-900">Available Courses</h2>
-              {requests
-                .filter((r) => r.status === 'pending')
-                .map((request, index) => (
+              {pendingRequests.map((request, index) => (
                   <motion.div
                     key={request.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -195,7 +205,7 @@ export default function CourseRequests() {
                 ))}
             </div>
 
-            {/* Slot Selection Panel */}
+            {/* Slot Selection / Accepted Courses Panel */}
             <div className="card sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto">
               {selectedRequest ? (
                 <div className="space-y-6">
@@ -272,14 +282,52 @@ export default function CourseRequests() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500">
-                  Select a course to view available time slots
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold text-gray-900">Accepted Courses</h2>
+                  {acceptedRequests.map((request, index) => (
+                    <motion.div
+                      key={request.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="card hover:shadow-lg transition-shadow"
+                    >
+                      <div className="space-y-3">
+                        <h3 className="font-bold text-lg text-gray-900">
+                          {request.course_name || 'Unnamed Course'}
+                        </h3>
+                        <p className="text-sm text-gray-600">{request.course_code}</p>
+                        <div className="pt-2 border-t">
+                          <button
+                            onClick={() => {
+                              setRequestToReschedule(request);
+                              setIsRescheduleModalOpen(true);
+                            }}
+                            className="w-full btn btn-sm btn-outline-primary flex items-center justify-center space-x-2"
+                          >
+                            <FiEdit /> <span>Reschedule</span>
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               )}
             </div>
           </div>
         )}
       </div>
+      {requestToReschedule && (
+        <RescheduleModal
+          isOpen={isRescheduleModalOpen}
+          onClose={() => setIsRescheduleModalOpen(false)}
+          courseRequest={requestToReschedule}
+          onSuccess={() => {
+            setIsRescheduleModalOpen(false);
+            loadData();
+          }}
+        />
+      )}
     </Layout>
   );
 }
