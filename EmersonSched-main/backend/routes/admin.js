@@ -29,6 +29,8 @@ router.post('/sections', adminController.createSection);
 router.get('/sections', adminController.getSections);
 router.put('/sections/:id', adminController.updateSection);
 router.delete('/sections/:id', adminController.deleteSection);
+router.post('/sections/:id/assign-courses', adminController.assignCoursesToSection);
+router.post('/sections/:id/promote', adminController.promoteSection);
 
 // Rooms
 router.post('/rooms', adminController.createRoom);

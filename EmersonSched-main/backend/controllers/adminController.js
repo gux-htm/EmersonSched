@@ -72,110 +72,108 @@ const getMajors = async (req, res) => {
 
 // ===================== COURSES & OFFERINGS =====================
 const createCourse = async (req, res) => {
+  const connection = await db.getConnection();
   try {
-    const { name, code, credit_hours, type, major_id, semester } = req.body;
+    const { name, code, credit_hours, type, major_ids, applies_to_all_programs } = req.body;
 
-    // 1. Insert or reuse course
-    let [existingCourse] = await db.query('SELECT id FROM courses WHERE code = ?', [code]);
-    let courseId;
+    await connection.beginTransaction();
 
-    if (existingCourse.length > 0) {
-      courseId = existingCourse[0].id;
-    } else {
-      const [insertCourse] = await db.query(
-        'INSERT INTO courses (name, code, credit_hours, type) VALUES (?, ?, ?, ?)',
-        [name, code, credit_hours, type || 'theory']
-      );
-      courseId = insertCourse.insertId;
-    }
-
-    // 2. Link to major + semester
-    await db.query(
-      'INSERT INTO course_offerings (course_id, major_id, semester) VALUES (?, ?, ?)',
-      [courseId, major_id, semester]
+    // 1. Insert course
+    const [insertCourse] = await connection.query(
+      'INSERT INTO courses (name, code, credit_hours, type) VALUES (?, ?, ?, ?)',
+      [name, code, credit_hours, type || 'theory']
     );
+    const courseId = insertCourse.insertId;
 
-    res.status(201).json({ message: 'Course created and offered', courseId });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ error: 'This course already exists for the selected major and semester' });
+    // 2. Link to majors
+    if (applies_to_all_programs) {
+        const [bsMajors] = await connection.query(`
+            SELECT m.id FROM majors m
+            JOIN programs p ON m.program_id = p.id
+            WHERE p.name LIKE 'BS-%'
+        `);
+        if (bsMajors.length > 0) {
+            const majorMappings = bsMajors.map(major => [courseId, major.id, 1]);
+            await connection.query(
+                'INSERT INTO course_major_map (course_id, major_id, applies_to_all_programs) VALUES ?',
+                [majorMappings]
+            );
+        }
+    } else if (major_ids && major_ids.length > 0) {
+      const majorMappings = major_ids.map(majorId => [courseId, majorId, 0]);
+      await connection.query(
+        'INSERT INTO course_major_map (course_id, major_id, applies_to_all_programs) VALUES ?',
+        [majorMappings]
+      );
     }
+
+    await connection.commit();
+
+    res.status(201).json({ message: 'Course created successfully', courseId });
+  } catch (error) {
+    if (connection) await connection.rollback();
     console.error('Create course error:', error);
     res.status(500).json({ error: 'Failed to create course' });
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 const getCourses = async (req, res) => {
   try {
-    const { program, major, semester, major_id, shift } = req.query;
+    const { program, major, search } = req.query;
 
     // Pagination
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.max(parseInt(req.query.limit) || 10, 1);
     const offset = (page - 1) * limit;
 
-    let baseWhere = 'WHERE 1=1';
-    const filterParams = [];
+    let whereClauses = [];
+    const params = [];
 
-    // Filter by program name
     if (program) {
-      baseWhere += ' AND p.name = ?';
-      filterParams.push(program);
+      whereClauses.push('p.id = ?');
+      params.push(program);
     }
 
-    // Filter by major name
     if (major) {
-      baseWhere += ' AND m.name = ?';
-      filterParams.push(major);
+      whereClauses.push('m.id = ?');
+      params.push(major);
     }
 
-    // Filter by semester
-    if (semester) {
-      baseWhere += ' AND co.semester = ?';
-      filterParams.push(semester);
+    if (search) {
+      whereClauses.push('(c.name LIKE ? OR c.code LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
     }
 
-    // Legacy support for major_id parameter
-    if (major_id) {
-      baseWhere += ' AND co.major_id = ?';
-      filterParams.push(major_id);
-    }
+    const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    // Filter by program shift (e.g., morning/evening)
-    if (shift) {
-      baseWhere += ' AND p.shift = ?';
-      filterParams.push(shift);
-    }
-
-    // Count total distinct courses for pagination
     const countQuery = `
       SELECT COUNT(DISTINCT c.id) AS total
       FROM courses c
-      LEFT JOIN course_offerings co ON c.id = co.course_id
-      LEFT JOIN majors m ON co.major_id = m.id
+      LEFT JOIN course_major_map cmm ON c.id = cmm.course_id
+      LEFT JOIN majors m ON cmm.major_id = m.id
       LEFT JOIN programs p ON m.program_id = p.id
-      ${baseWhere}
+      ${whereString}
     `;
-    const [countRows] = await db.query(countQuery, filterParams);
+    const [countRows] = await db.query(countQuery, params);
     const totalRecords = countRows[0]?.total || 0;
     const totalPages = Math.max(Math.ceil(totalRecords / limit), 1);
 
-    // Fetch paginated data
     const dataQuery = `
       SELECT c.id, c.name, c.code, c.credit_hours, c.type,
-             GROUP_CONCAT(DISTINCT co.semester SEPARATOR ', ') as semesters,
              GROUP_CONCAT(DISTINCT m.name SEPARATOR ', ') as major_names,
              GROUP_CONCAT(DISTINCT p.name SEPARATOR ', ') as program_names
       FROM courses c
-      LEFT JOIN course_offerings co ON c.id = co.course_id
-      LEFT JOIN majors m ON co.major_id = m.id
+      LEFT JOIN course_major_map cmm ON c.id = cmm.course_id
+      LEFT JOIN majors m ON cmm.major_id = m.id
       LEFT JOIN programs p ON m.program_id = p.id
-      ${baseWhere}
+      ${whereString}
       GROUP BY c.id
       ORDER BY c.name
       LIMIT ? OFFSET ?
     `;
-    const dataParams = [...filterParams, limit, offset];
+    const dataParams = [...params, limit, offset];
     const [rows] = await db.query(dataQuery, dataParams);
 
     res.json({
@@ -356,6 +354,52 @@ const deleteSection = async (req, res) => {
   }
 };
 
+const assignCoursesToSection = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        const { id: section_id } = req.params;
+        const { course_ids, semester, intake, shift, academic_year } = req.body;
+        const created_by = req.user.id;
+
+        await connection.beginTransaction();
+
+        const newOfferingIds = [];
+        for (const course_id of course_ids) {
+            // Check for duplicates
+            const [existing] = await connection.query(
+                'SELECT id FROM course_offerings WHERE section_id = ? AND course_id = ? AND semester = ?',
+                [section_id, course_id, semester]
+            );
+
+            if (existing.length > 0) {
+                continue; // Skip duplicate
+            }
+
+            const [offeringResult] = await connection.query(
+                'INSERT INTO course_offerings (course_id, section_id, semester, intake, shift, academic_year, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [course_id, section_id, semester, intake, shift, academic_year, created_by]
+            );
+            const offering_id = offeringResult.insertId;
+            newOfferingIds.push(offering_id);
+
+            await connection.query(
+                'INSERT INTO section_course_history (section_id, offering_id, status) VALUES (?, ?, ?)',
+                [section_id, offering_id, 'pending']
+            );
+        }
+
+        await connection.commit();
+
+        res.status(201).json({ message: 'Courses assigned successfully', offeringIds: newOfferingIds });
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Assign courses to section error:', error);
+        res.status(500).json({ error: 'Failed to assign courses' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 // ===================== ROOMS =====================
 const createRoom = async (req, res) => {
   try {
@@ -467,6 +511,54 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
+const promoteSection = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        const { id: section_id } = req.params;
+        const { new_semester, promote_courses } = req.body;
+        const created_by = req.user.id;
+
+        await connection.beginTransaction();
+
+        // Get current offerings for the section
+        const [currentOfferings] = await connection.query(
+            'SELECT * FROM course_offerings WHERE section_id = ?',
+            [section_id]
+        );
+
+        if (promote_courses) {
+            for (const offering of currentOfferings) {
+                const [newOfferingResult] = await connection.query(
+                    'INSERT INTO course_offerings (course_id, section_id, semester, intake, shift, academic_year, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [offering.course_id, section_id, new_semester, offering.intake, offering.shift, offering.academic_year, created_by]
+                );
+                const new_offering_id = newOfferingResult.insertId;
+
+                await connection.query(
+                    'INSERT INTO section_course_history (section_id, offering_id, status) VALUES (?, ?, ?)',
+                    [section_id, new_offering_id, 'pending']
+                );
+            }
+        }
+
+        // Update the section's semester
+        await connection.query(
+            'UPDATE sections SET semester = ? WHERE id = ?',
+            [new_semester, section_id]
+        );
+
+        await connection.commit();
+
+        res.json({ message: 'Section promoted successfully' });
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Promote section error:', error);
+        res.status(500).json({ error: 'Failed to promote section' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 module.exports = {
   createProgram,
   getPrograms,
@@ -480,6 +572,8 @@ module.exports = {
   getSections,
   updateSection,
   deleteSection,
+  assignCoursesToSection,
+  promoteSection,
   createRoom,
   getRooms,
   updateRoom,

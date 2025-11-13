@@ -88,104 +88,8 @@ INSERT INTO `courses` (`id`, `code`, `name`, `credit_hours`, `type`, `created_at
 --
 -- Table structure for table `course_offerings`
 --
-
-CREATE TABLE `course_offerings` (
-  `id` int(11) NOT NULL,
-  `course_id` int(11) NOT NULL,
-  `major_id` int(11) NOT NULL,
-  `semester` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
+-- This table is created in the migration_add_offerings.sql file.
 --
--- Dumping data for table `course_offerings`
---
-
-INSERT INTO `course_offerings` (`id`, `course_id`, `major_id`, `semester`) VALUES
-(4, 1, 9, 3),
-(5, 1, 10, 3),
-(1, 1, 11, 3),
-(2, 1, 12, 3),
-(6, 1, 13, 3),
-(7, 1, 14, 3),
-(8, 1, 15, 3),
-(9, 1, 16, 3),
-(10, 1, 17, 3),
-(11, 1, 18, 3),
-(12, 1, 19, 3),
-(13, 1, 20, 3),
-(14, 1, 21, 3),
-(15, 1, 22, 3),
-(16, 2, 9, 3),
-(20, 2, 10, 3),
-(21, 2, 11, 3),
-(22, 2, 12, 3),
-(23, 2, 13, 3),
-(24, 2, 14, 3),
-(25, 2, 15, 3),
-(26, 2, 16, 3),
-(27, 2, 17, 3),
-(28, 2, 18, 3),
-(29, 2, 19, 3),
-(30, 2, 20, 3),
-(31, 2, 21, 3),
-(32, 2, 22, 3),
-(18, 4, 9, 3),
-(33, 4, 10, 3),
-(34, 4, 11, 3),
-(35, 4, 12, 3),
-(36, 4, 13, 3),
-(37, 4, 14, 3),
-(38, 4, 15, 3),
-(39, 4, 16, 3),
-(40, 4, 17, 3),
-(41, 4, 18, 3),
-(42, 4, 19, 3),
-(43, 4, 20, 3),
-(44, 4, 21, 3),
-(45, 4, 22, 3),
-(46, 6, 9, 3),
-(49, 6, 10, 3),
-(50, 6, 11, 3),
-(51, 6, 12, 3),
-(52, 6, 13, 3),
-(53, 6, 14, 3),
-(54, 6, 15, 3),
-(55, 6, 16, 3),
-(56, 6, 17, 3),
-(57, 6, 18, 3),
-(58, 6, 19, 3),
-(59, 6, 20, 3),
-(60, 6, 21, 3),
-(61, 6, 22, 3),
-(47, 7, 9, 3),
-(62, 7, 10, 3),
-(63, 7, 11, 3),
-(64, 7, 12, 3),
-(65, 7, 13, 3),
-(66, 7, 14, 3),
-(67, 7, 15, 3),
-(68, 7, 16, 3),
-(69, 7, 17, 3),
-(70, 7, 18, 3),
-(71, 7, 19, 3),
-(72, 7, 20, 3),
-(73, 7, 21, 3),
-(74, 7, 22, 3),
-(48, 8, 9, 3),
-(75, 8, 10, 3),
-(76, 8, 11, 3),
-(77, 8, 12, 3),
-(78, 8, 13, 3),
-(79, 8, 14, 3),
-(80, 8, 15, 3),
-(81, 8, 16, 3),
-(82, 8, 17, 3),
-(83, 8, 18, 3),
-(84, 8, 19, 3),
-(85, 8, 20, 3),
-(86, 8, 21, 3),
-(87, 8, 22, 3);
-
 -- --------------------------------------------------------
 
 --
@@ -213,7 +117,8 @@ CREATE TABLE `course_requests` (
 --
 
 INSERT INTO `course_requests` (`id`, `course_id`, `section_id`, `instructor_id`, `status`, `preferences`, `created_at`, `accepted_at`, `major_id`, `semester`, `shift`, `time_slot`, `requested_by`) VALUES
-(1, 1, 1, NULL, 'pending', NULL, '2025-10-26 20:22:42', NULL, NULL, '3', 'morning', NULL, 'bb65c4c7-c8b9-4752-b6a5-8778851da1a2');
+(1, 1, 1, NULL, 'pending', NULL, '2025-10-26 20:22:42', NULL, 9, '3', 'morning', NULL, 'bb65c4c7-c8b9-4752-b6a5-8778851da1a2'),
+(2, 2, 1, NULL, 'pending', NULL, '2025-10-26 20:22:42', NULL, 9, '3', 'morning', NULL, 'bb65c4c7-c8b9-4752-b6a5-8778851da1a2');
 
 -- --------------------------------------------------------
 
@@ -575,14 +480,6 @@ ALTER TABLE `courses`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `course_offerings`
---
-ALTER TABLE `course_offerings`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `course_id` (`course_id`,`major_id`,`semester`),
-  ADD KEY `major_id` (`major_id`);
-
---
 -- Indexes for table `course_requests`
 --
 ALTER TABLE `course_requests`
@@ -718,12 +615,6 @@ ALTER TABLE `courses`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
--- AUTO_INCREMENT for table `course_offerings`
---
-ALTER TABLE `course_offerings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=88;
-
---
 -- AUTO_INCREMENT for table `course_requests`
 --
 ALTER TABLE `course_requests`
@@ -820,13 +711,6 @@ ALTER TABLE `blocks`
   ADD CONSTRAINT `blocks_ibfk_3` FOREIGN KEY (`section_id`) REFERENCES `sections` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `blocks_ibfk_4` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `blocks_ibfk_5` FOREIGN KEY (`time_slot_id`) REFERENCES `time_slots` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `course_offerings`
---
-ALTER TABLE `course_offerings`
-  ADD CONSTRAINT `course_offerings_ibfk_1` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `course_offerings_ibfk_2` FOREIGN KEY (`major_id`) REFERENCES `majors` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `course_requests`

@@ -32,6 +32,7 @@ app.use('/api/timing', require('./routes/timing'));
 app.use('/api/timetable', require('./routes/timetable'));
 app.use('/api/exam', require('./routes/exam'));
 app.use('/api/rooms', require('./routes/rooms'));
+app.use('/api/offerings', require('./routes/offerings'));
 
 // ✅ Add this BEFORE 404 handler
 const requestRoutes = require('./routes/requestRoutes');
@@ -59,12 +60,14 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5050;
-app.listen(PORT, () => {
-  console.log('=================================');
-  console.log('🎓 EmersonSched API Server');
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log('=================================');
-});
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log('=================================');
+    console.log('🎓 EmersonSched API Server');
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log('=================================');
+  });
+}
 
 module.exports = app;
