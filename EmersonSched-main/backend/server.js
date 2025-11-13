@@ -38,6 +38,9 @@ app.use('/api/offerings', require('./routes/offerings'));
 const requestRoutes = require('./routes/requestRoutes');
 app.use('/api/course-requests', requestRoutes);
 
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'EmersonSched API is running' });
