@@ -5,7 +5,8 @@ import { useRouter } from 'next/router';
 import api from '@/lib/api'; // ✅ fixed import — it’s default, not named
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FiSend } from 'react-icons/fi';
+import { FiSend, FiEdit } from 'react-icons/fi';
+import ChangeInstructorModal from '@/components/ChangeInstructorModal';
 
 export default function AdminCourseRequests() {
   const { user } = useAuth();
@@ -13,7 +14,9 @@ export default function AdminCourseRequests() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [filter, setFilter] = useState<'accepted' | 'pending'>('accepted');
+  const [filter, setFilter] = useState<'accepted' | 'pending' | 'reassigned' | 'rescheduled'>('accepted');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -101,6 +104,26 @@ export default function AdminCourseRequests() {
             }`}
           >
             Pending
+          </button>
+          <button
+            onClick={() => setFilter('reassigned')}
+            className={`px-6 py-2 rounded-md font-medium transition-all duration-200 ${
+              filter === 'reassigned'
+                ? 'bg-blue-400 text-white shadow-md'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Reassigned
+          </button>
+          <button
+            onClick={() => setFilter('rescheduled')}
+            className={`px-6 py-2 rounded-md font-medium transition-all duration-200 ${
+              filter === 'rescheduled'
+                ? 'bg-purple-400 text-white shadow-md'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Rescheduled
           </button>
         </div>
 
@@ -192,6 +215,21 @@ export default function AdminCourseRequests() {
                       </div>
                     </div>
                   )}
+
+                  {filter === 'accepted' && (
+                    <div className="pt-2 border-t">
+                      <button
+                        onClick={() => {
+                          setSelectedRequest(req);
+                          setIsModalOpen(true);
+                        }}
+                        className="btn btn-sm btn-outline-primary w-full flex items-center justify-center gap-2"
+                      >
+                        <FiEdit />
+                        Change Instructor
+                      </button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
               ))}
@@ -199,6 +237,17 @@ export default function AdminCourseRequests() {
           );
         })()}
       </div>
+      {selectedRequest && (
+        <ChangeInstructorModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          courseRequest={selectedRequest}
+          onSuccess={() => {
+            setIsModalOpen(false);
+            loadRequests();
+          }}
+        />
+      )}
     </Layout>
   );
 }

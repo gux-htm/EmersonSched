@@ -256,7 +256,7 @@ export default function Exams() {
                       </tr>
                     </thead>
                     <tbody>
-                      {groupedExams[date].map((exam) => (
+                        {groupedExams[date].map((exam: any) => (
                         <tr key={exam.id}>
                           <td className="font-medium">
                             {exam.start_time.substring(0, 5)} - {exam.end_time.substring(0, 5)}

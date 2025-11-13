@@ -322,41 +322,133 @@ const getTimetable = async (req, res) => {
 
 // Reschedule class
 const rescheduleClass = async (req, res) => {
+  const { course_request_id, new_schedule } = req.body;
+  const instructor_id = req.user.id;
+
+  if (!course_request_id || !new_schedule || !Array.isArray(new_schedule) || new_schedule.length === 0) {
+    return res.status(400).json({ message: 'Missing required fields.' });
+  }
+
+  const connection = await db.getConnection();
   try {
-    const { block_id, new_day, new_time_slot_id, new_room_id } = req.body;
-    const instructor_id = req.user.id;
-    
-    // Get block details
-    const [blocks] = await db.query('SELECT * FROM blocks WHERE id = ? AND teacher_id = ?', [block_id, instructor_id]);
-    
-    if (blocks.length === 0) {
-      return res.status(404).json({ error: 'Block not found or unauthorized' });
+    await connection.beginTransaction();
+
+    // Get the course request
+    const [[courseRequest]] = await connection.query('SELECT * FROM course_requests WHERE id = ? AND instructor_id = ?', [course_request_id, instructor_id]);
+
+    if (!courseRequest) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Course request not found or you are not the instructor.' });
+    }
+
+    // --- Conflict Checking ---
+    for (const slot of new_schedule) {
+      // Check instructor availability
+      const [instructorClash] = await connection.query(
+        `SELECT sr.id FROM slot_reservations sr
+         JOIN course_requests cr ON sr.course_request_id = cr.id
+         WHERE sr.instructor_id = ? AND sr.time_slot_id = ? AND sr.status = 'reserved' AND cr.id != ?`,
+        [instructor_id, slot.time_slot_id, course_request_id]
+      );
+      if (instructorClash.length > 0) {
+        await connection.rollback();
+        return res.status(409).json({ message: `You have a conflict at time slot ${slot.time_slot_id}.` });
+      }
+
+      // Check section availability
+      const [sectionClash] = await connection.query(
+        `SELECT sr.id FROM slot_reservations sr
+         JOIN course_requests cr ON sr.course_request_id = cr.id
+         WHERE cr.section_id = ? AND sr.time_slot_id = ? AND sr.status = 'reserved' AND cr.id != ?`,
+        [courseRequest.section_id, slot.time_slot_id, course_request_id]
+      );
+      if (sectionClash.length > 0) {
+        await connection.rollback();
+        return res.status(409).json({ message: `The section has a conflict at time slot ${slot.time_slot_id}.` });
+      }
+    }
+
+    // --- Update Schedule ---
+    // First, cancel all existing reservations for this course request
+    await connection.query(`UPDATE slot_reservations SET status = 'cancelled' WHERE course_request_id = ?`, [course_request_id]);
+
+    // Create new reservations
+    for (const slot of new_schedule) {
+      // Find an available room
+      const [availableRooms] = await connection.query(
+        `SELECT r.id FROM rooms r
+         LEFT JOIN room_assignments ra ON r.id = ra.room_id AND ra.time_slot_id = ? AND ra.status = 'reserved'
+         WHERE ra.id IS NULL
+         LIMIT 1`,
+        [slot.time_slot_id]
+      );
+
+      if (availableRooms.length === 0) {
+        await connection.rollback();
+        return res.status(409).json({ message: `No available rooms for time slot ${slot.time_slot_id}.` });
+      }
+      const roomId = availableRooms[0].id;
+
+      // Create room assignment
+      const [roomAssignment] = await connection.query(
+        `INSERT INTO room_assignments (room_id, section_id, time_slot_id, semester, status, assigned_by)
+         VALUES (?, ?, ?, ?, 'reserved', ?)`,
+        [roomId, courseRequest.section_id, slot.time_slot_id, courseRequest.semester, instructor_id]
+      );
+
+      // Create new slot reservation
+      await connection.query(
+        `INSERT INTO slot_reservations (course_request_id, instructor_id, time_slot_id, room_assignment_id, status)
+         VALUES (?, ?, ?, ?, 'reserved')`,
+        [course_request_id, instructor_id, slot.time_slot_id, roomAssignment.insertId]
+      );
     }
     
-    const block = blocks[0];
-    
-    // Check for conflicts
-    const [conflicts] = await db.query(
-      `SELECT COUNT(*) as count FROM blocks 
-       WHERE day = ? AND time_slot_id = ? AND id != ?
-       AND (teacher_id = ? OR section_id = ? OR (room_id = ? AND shift = ?))`,
-      [new_day, new_time_slot_id, block_id, instructor_id, block.section_id, new_room_id, block.shift]
+    // Update the course_requests table with the new schedule
+        await connection.query(
+      'UPDATE course_requests SET status = ?, preferences = ? WHERE id = ?',
+      ['rescheduled', JSON.stringify(new_schedule), course_request_id]
     );
-    
-    if (conflicts[0].count > 0) {
-      return res.status(400).json({ error: 'Conflict detected with new schedule' });
+
+
+    // Log the change
+    await connection.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
+       VALUES (?, 'reschedule', 'course_request', ?, ?)`,
+      [instructor_id, course_request_id, JSON.stringify(new_schedule)]
+    );
+
+    // Notify students
+    const [students] = await connection.query('SELECT student_id FROM student_enrollments WHERE section_id = ?', [courseRequest.section_id]);
+    if (students.length > 0) {
+      const studentIds = students.map(s => s.student_id);
+      const notification = {
+        type: 'reschedule',
+        title: 'Class Rescheduled',
+        message: `Your class has been rescheduled. Please check your timetable for the updated schedule.`
+      };
+      const notifications = studentIds.map(studentId => [studentId, notification.type, notification.title, notification.message]);
+      await connection.query('INSERT INTO notifications (user_id, type, title, message) VALUES ?', [notifications]);
     }
     
-    // Update block
-    await db.query(
-      'UPDATE blocks SET day = ?, time_slot_id = ?, room_id = ? WHERE id = ?',
-      [new_day, new_time_slot_id, new_room_id, block_id]
-    );
-    
-    res.json({ message: 'Class rescheduled successfully' });
-  } catch (error) {
-    console.error('Reschedule class error:', error);
-    res.status(500).json({ error: 'Failed to reschedule class' });
+    // Notify instructor
+    const instructorNotification = {
+        user_id: instructor_id,
+        type: 'reschedule',
+        title: 'Class Rescheduled',
+        message: `You have successfully rescheduled your class.`
+    };
+    await connection.query('INSERT INTO notifications SET ?', instructorNotification);
+
+
+    await connection.commit();
+    res.status(200).json({ message: 'Class rescheduled successfully.' });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error rescheduling class:', err);
+    res.status(500).json({ message: 'Server error while rescheduling class.' });
+  } finally {
+    connection.release();
   }
 };
 
@@ -384,6 +476,48 @@ const resetTimetable = async (req, res) => {
   }
 };
 
+// Get available slots for rescheduling
+const getAvailableSlots = async (req, res) => {
+  const { section_id, instructor_id } = req.query;
+
+  if (!section_id || !instructor_id) {
+    return res.status(400).json({ message: 'Missing required fields.' });
+  }
+
+  try {
+    // Get all time slots
+    const [allSlots] = await db.query('SELECT * FROM time_slots');
+
+    // Get instructor's reserved slots
+    const [instructorSlots] = await db.query(
+      `SELECT sr.time_slot_id FROM slot_reservations sr
+       JOIN course_requests cr ON sr.course_request_id = cr.id
+       WHERE sr.instructor_id = ? AND sr.status = 'reserved'`,
+      [instructor_id]
+    );
+    const instructorReservedIds = new Set(instructorSlots.map(s => s.time_slot_id));
+
+    // Get section's reserved slots
+    const [sectionSlots] = await db.query(
+      `SELECT sr.time_slot_id FROM slot_reservations sr
+       JOIN course_requests cr ON sr.course_request_id = cr.id
+       WHERE cr.section_id = ? AND sr.status = 'reserved'`,
+      [section_id]
+    );
+    const sectionReservedIds = new Set(sectionSlots.map(s => s.time_slot_id));
+
+    // Filter available slots
+    const availableSlots = allSlots.filter(
+      slot => !instructorReservedIds.has(slot.id) && !sectionReservedIds.has(slot.id)
+    );
+
+    res.json({ available_slots: availableSlots });
+  } catch (error) {
+    console.error('Get available slots error:', error);
+    res.status(500).json({ error: 'Failed to get available slots' });
+  }
+};
+
 module.exports = {
   generateCourseRequests,
   getCourseRequests,
@@ -392,5 +526,6 @@ module.exports = {
   generateTimetable,
   getTimetable,
   rescheduleClass,
-  resetTimetable
+  resetTimetable,
+  getAvailableSlots
 };

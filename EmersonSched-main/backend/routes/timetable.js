@@ -16,5 +16,6 @@ router.post('/reschedule', auth, isInstructor, timetableController.rescheduleCla
 // Common routes
 router.get('/requests', auth, timetableController.getCourseRequests);
 router.get('/', auth, timetableController.getTimetable);
+router.get('/available-slots', auth, isInstructor, timetableController.getAvailableSlots);
 
 module.exports = router;
