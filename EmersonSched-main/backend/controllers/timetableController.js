@@ -45,18 +45,22 @@ const generateCourseRequests = async (req, res) => {
 // Get course requests (for instructors)
 const getCourseRequests = async (req, res) => {
   try {
-    const { status, instructor_id } = req.query;
+    const { status, instructor_id, program, major, semester, section } = req.query;
     
     let query = `
       SELECT cr.*, 
+             co.id as offering_id, co.intake, co.academic_year,
              c.name as course_name, c.code as course_code, c.credit_hours,
              s.name as section_name, s.shift,
              m.name as major_name,
+             p.name as program_name,
              u.name as instructor_name
       FROM course_requests cr
-      JOIN courses c ON cr.course_id = c.id
-      JOIN sections s ON cr.section_id = s.id
-      JOIN majors m ON cr.major_id = m.id
+      JOIN course_offerings co ON cr.offering_id = co.id
+      JOIN courses c ON co.course_id = c.id
+      JOIN sections s ON co.section_id = s.id
+      JOIN majors m ON co.major_id = m.id
+      JOIN programs p ON co.program_id = p.id
       LEFT JOIN users u ON cr.instructor_id = u.id
       WHERE 1=1
     `;
@@ -71,6 +75,23 @@ const getCourseRequests = async (req, res) => {
       query += ' AND cr.instructor_id = ?';
       params.push(instructor_id);
     }
+
+    if (program) {
+        query += ' AND p.id = ?';
+        params.push(program);
+    }
+    if (major) {
+        query += ' AND m.id = ?';
+        params.push(major);
+    }
+    if (semester) {
+        query += ' AND co.semester = ?';
+        params.push(semester);
+    }
+    if (section) {
+        query += ' AND s.id = ?';
+        params.push(section);
+    }
     
     query += ' ORDER BY cr.created_at DESC';
     
@@ -84,65 +105,84 @@ const getCourseRequests = async (req, res) => {
 
 // Accept course request
 const acceptCourseRequest = async (req, res) => {
-  try {
-    const { request_id, preferences } = req.body;
-    const instructor_id = req.user.id;
-    
-    // Validate preferences
-    if (!preferences || !preferences.days || !preferences.time_slots) {
-      return res.status(400).json({ error: 'Preferences (days and time_slots) are required' });
-    }
-    
-    // Get request details
-    const [requests] = await db.query(
-      `SELECT cr.*, c.credit_hours, s.shift, c.type 
-       FROM course_requests cr 
-       JOIN courses c ON cr.course_id = c.id
-       JOIN sections s ON cr.section_id = s.id
-       WHERE cr.id = ?`,
-      [request_id]
-    );
-    
-    if (requests.length === 0) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-    
-    const request = requests[0];
-    
-    // Check conflicts
-    const [existingBlocks] = await db.query('SELECT * FROM blocks WHERE teacher_id = ?', [instructor_id]);
-    
-    // Validate each selected slot
-    for (const day of preferences.days) {
-      for (const timeSlotId of preferences.time_slots) {
-        const newBlock = {
-          teacher_id: instructor_id,
-          day: day.toLowerCase(),
-          time_slot_id: timeSlotId,
-          section_id: request.section_id,
-          shift: request.shift
-        };
-        
-        if (hasConflict(existingBlocks, newBlock)) {
-          return res.status(400).json({ 
-            error: 'Conflict detected with existing schedule',
-            details: { day, timeSlotId }
-          });
+    const connection = await db.getConnection();
+    try {
+        const { request_id, selections } = req.body;
+        const instructor_id = req.user.id;
+
+        await connection.beginTransaction();
+
+        const [requests] = await connection.query(
+            'SELECT * FROM course_requests WHERE id = ? AND status = ? FOR UPDATE',
+            [request_id, 'pending']
+        );
+
+        if (requests.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Request not found or already accepted' });
         }
-      }
+        const request = requests[0];
+
+        for (const selection of selections) {
+            const { time_slot_id, optional_room_id } = selection;
+
+            // Check for room availability and lock
+            let room_id = optional_room_id;
+            if (!room_id) {
+                // Find an available room if not specified
+                const [availableRooms] = await connection.query(
+                    `SELECT r.id FROM rooms r
+                     LEFT JOIN room_assignments ra ON r.id = ra.room_id AND ra.time_slot_id = ?
+                     WHERE ra.id IS NULL
+                     ORDER BY r.capacity DESC
+                     LIMIT 1`,
+                    [time_slot_id]
+                );
+                if (availableRooms.length === 0) {
+                    await connection.rollback();
+                    return res.status(409).json({ error: `No available rooms for time slot ${time_slot_id}` });
+                }
+                room_id = availableRooms[0].id;
+            } else {
+                 // Lock the specified room
+                const [lockedRoom] = await connection.query(
+                    'SELECT id FROM room_assignments WHERE room_id = ? AND time_slot_id = ? FOR UPDATE',
+                    [room_id, time_slot_id]
+                );
+                if (lockedRoom.length > 0) {
+                    await connection.rollback();
+                    return res.status(409).json({ error: `Room ${room_id} is not available for time slot ${time_slot_id}` });
+                }
+            }
+
+
+            // Create room assignment and slot reservation
+            const [assignmentResult] = await connection.query(
+                'INSERT INTO room_assignments (room_id, section_id, time_slot_id, semester, offering_id) VALUES (?, ?, ?, ?, ?)',
+                [room_id, request.section_id, time_slot_id, request.semester, request.offering_id]
+            );
+
+            await connection.query(
+                'INSERT INTO slot_reservations (course_request_id, instructor_id, time_slot_id, room_assignment_id, offering_id) VALUES (?, ?, ?, ?, ?)',
+                [request_id, instructor_id, time_slot_id, assignmentResult.insertId, request.offering_id]
+            );
+        }
+
+        await connection.query(
+            'UPDATE course_requests SET instructor_id = ?, status = ?, accepted_at = NOW() WHERE id = ?',
+            [instructor_id, 'accepted', request_id]
+        );
+
+        await connection.commit();
+        res.json({ message: 'Course request accepted successfully' });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Accept course request error:', error);
+        res.status(500).json({ error: 'Failed to accept course request' });
+    } finally {
+        if (connection) connection.release();
     }
-    
-    // Update request
-    await db.query(
-      'UPDATE course_requests SET instructor_id = ?, status = ?, preferences = ?, accepted_at = NOW() WHERE id = ?',
-      [instructor_id, 'accepted', JSON.stringify(preferences), request_id]
-    );
-    
-    res.json({ message: 'Course request accepted successfully' });
-  } catch (error) {
-    console.error('Accept course request error:', error);
-    res.status(500).json({ error: 'Failed to accept course request' });
-  }
 };
 
 // Undo course acceptance
