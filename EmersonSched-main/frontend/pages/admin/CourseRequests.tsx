@@ -13,7 +13,6 @@ export default function AdminCourseRequests() {
   const router = useRouter();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'accepted' | 'pending'>('accepted');
   const [sending, setSending] = useState(false);
   const [filter, setFilter] = useState<'accepted' | 'pending' | 'reassigned' | 'rescheduled'>('accepted');
   const [isModalOpen, setIsModalOpen] = useState(false);
