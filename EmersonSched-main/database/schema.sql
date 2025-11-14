@@ -399,30 +399,6 @@ CREATE TABLE `time_slot_generation_settings` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `university_timings`
---
-
-CREATE TABLE `university_timings` (
-  `id` int(11) NOT NULL,
-  `opening_time` time NOT NULL,
-  `closing_time` time NOT NULL,
-  `break_duration` int(11) DEFAULT 15,
-  `slot_length` int(11) DEFAULT 60,
-  `working_days` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`working_days`)),
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf16le COLLATE=utf16le_general_ci;
-
---
--- Dumping data for table `university_timings`
---
-
-INSERT INTO `university_timings` (`id`, `opening_time`, `closing_time`, `break_duration`, `slot_length`, `working_days`, `is_active`, `created_at`) VALUES
-(1, '08:00:00', '17:00:00', 60, 60, '[\"monday\",\"tuesday\",\"wednesday\",\"thursday\",\"friday\",\"saturday\"]', 1, '2025-10-26 14:57:49');
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `users`
 --
 
@@ -578,11 +554,6 @@ ALTER TABLE `time_slot_generation_settings`
   ADD UNIQUE KEY `unique_shift` (`shift`);
 
 --
--- Indexes for table `university_timings`
---
-ALTER TABLE `university_timings`
-  ADD PRIMARY KEY (`id`);
-
 --
 -- Indexes for table `users`
 --
@@ -685,12 +656,6 @@ ALTER TABLE `time_slots`
 --
 ALTER TABLE `time_slot_generation_settings`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `university_timings`
---
-ALTER TABLE `university_timings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables
