@@ -71,7 +71,8 @@ export const adminAPI = {
   getSections: (params?: any) => api.get('/admin/sections', { params }),
   updateSection: (id: number, data: any) => api.put(`/admin/sections/${id}`, data),
   deleteSection: (id: number) => api.delete(`/admin/sections/${id}`),
-  
+  getSectionRecord: (sectionName: string) => api.get(`/admin/sections/${sectionName}/record`),
+
   // Rooms
   createRoom: (data: any) => api.post('/admin/rooms', data),
   getRooms: (type?: string) => api.get('/admin/rooms', { params: { type } }),

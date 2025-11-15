@@ -292,10 +292,39 @@ const generateTimetable = async (req, res) => {
     
     // Insert blocks
     if (blocks.length > 0) {
-      await db.query(
-        'INSERT INTO blocks (teacher_id, course_id, section_id, room_id, day, time_slot_id, shift, type) VALUES ?',
-        [blocks]
-      );
+      const connection = await db.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        await connection.query(
+          'INSERT INTO blocks (teacher_id, course_id, section_id, room_id, day, time_slot_id, shift, type) VALUES ?',
+          [blocks]
+        );
+
+        // Now, populate section_records
+        const sectionRecords = [];
+        for (const block of blocks) {
+          const [teacher_id, course_id, section_id] = block;
+          const [[section]] = await connection.query('SELECT semester FROM sections WHERE id = ?', [section_id]);
+          if(section) {
+            sectionRecords.push([section_id, course_id, teacher_id, section.semester]);
+          }
+        }
+
+        if (sectionRecords.length > 0) {
+          await connection.query(
+            'INSERT IGNORE INTO section_records (section_id, course_id, instructor_id, semester) VALUES ?',
+            [sectionRecords]
+          );
+        }
+
+        await connection.commit();
+      } catch (error) {
+        if (connection) await connection.rollback();
+        throw error; // Re-throw to be caught by outer catch
+      } finally {
+        if (connection) connection.release();
+      }
     }
     
     res.json({ 
