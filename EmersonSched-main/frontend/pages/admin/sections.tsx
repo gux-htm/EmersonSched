@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { adminAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FiPlus, FiEdit, FiTrash2, FiChevronsRight, FiCornerRightUp } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiChevronsRight, FiCornerRightUp, FiBookOpen } from 'react-icons/fi';
 
 export default function Sections() {
   const { isAdmin } = useAuth();
@@ -200,6 +200,9 @@ export default function Sections() {
                         </button>
                         <button onClick={() => { setSelectedSection(section); setNewSemester(section.semester + 1); setShowPromoteModal(true); }} className="btn btn-secondary btn-sm flex items-center space-x-1" title="Promote Section">
                           <FiCornerRightUp size={14} /> <span>Promote</span>
+                        </button>
+                        <button onClick={() => router.push(`/admin/sections/${section.name}/record`)} className="btn btn-info btn-sm flex items-center space-x-1" title="View Record">
+                          <FiBookOpen size={14} /> <span>View Record</span>
                         </button>
                       </div>
                     </td>

@@ -256,7 +256,7 @@ CREATE TABLE `room_assignments` (
   `time_slot_id` int(11) NOT NULL,
   `semester` varchar(50) NOT NULL,
   `status` enum('reserved','available','blocked') DEFAULT 'reserved',
-  `assigned_by` char(36) DEFAULT NULL,
+  `assigned_by` char(36) CHARACTER SET utf16le COLLATE utf16le_general_ci DEFAULT NULL,
   `assigned_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -316,7 +316,7 @@ INSERT INTO `sections` (`id`, `major_id`, `name`, `semester`, `student_strength`
 CREATE TABLE `slot_reservations` (
   `id` int(11) NOT NULL,
   `course_request_id` int(11) NOT NULL,
-  `instructor_id` char(36) NOT NULL,
+  `instructor_id` char(36) CHARACTER SET utf16le COLLATE utf16le_general_ci NOT NULL,
   `time_slot_id` int(11) NOT NULL,
   `room_assignment_id` int(11) NOT NULL,
   `status` enum('reserved','cancelled') DEFAULT 'reserved',

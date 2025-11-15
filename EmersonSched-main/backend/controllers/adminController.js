@@ -559,6 +559,92 @@ const promoteSection = async (req, res) => {
     }
 };
 
+const getSectionRecord = async (req, res) => {
+  try {
+    const { sectionName } = req.params;
+
+    // 1. Get Section Details
+    const [sectionRows] = await db.query(
+      `SELECT s.id, s.name, s.semester, s.student_strength, m.id as major_id, m.name as major_name, p.total_semesters
+       FROM sections s
+       JOIN majors m ON s.major_id = m.id
+       JOIN programs p ON m.program_id = p.id
+       WHERE s.name = ?`,
+      [sectionName]
+    );
+
+    if (sectionRows.length === 0) {
+      return res.status(404).json({ error: 'Section not found' });
+    }
+    const section = sectionRows[0];
+    const sectionDetails = {
+      id: section.id,
+      name: section.name,
+      major: section.major_name,
+      currentSemester: section.semester,
+      totalSemesters: section.total_semesters,
+      studentCount: section.student_strength
+    };
+
+    // 2. Get Completed Courses
+    const [completedRows] = await db.query(
+      `SELECT sr.semester, c.code AS courseCode, c.name AS courseName, c.credit_hours AS creditHours, u.name AS instructorName
+       FROM section_records sr
+       JOIN courses c ON sr.course_id = c.id
+       LEFT JOIN users u ON sr.instructor_id = u.id
+       WHERE sr.section_id = ?
+       ORDER BY sr.semester`,
+      [section.id]
+    );
+
+    const completedCourses = completedRows.reduce((acc, row) => {
+      const semesterData = acc.find(item => item.semester === row.semester);
+      const course = {
+        courseCode: row.courseCode,
+        courseName: row.courseName,
+        creditHours: row.creditHours,
+        instructor: row.instructorName || 'N/A'
+      };
+      if (semesterData) {
+        semesterData.courses.push(course);
+      } else {
+        acc.push({ semester: row.semester, courses: [course] });
+      }
+      return acc;
+    }, []);
+
+    const completedCourseIds = new Set(completedRows.map(c => c.courseCode));
+
+    // 3. Get All Courses for the Major and Compute Pending
+    const [allMajorCourses] = await db.query(
+        `SELECT c.code, c.name, c.credit_hours
+         FROM courses c
+         JOIN course_major_map cmm ON c.id = cmm.course_id
+         WHERE cmm.major_id = ?`,
+        [section.major_id]
+    );
+
+    const pendingCourses = allMajorCourses
+        .filter(course => !completedCourseIds.has(course.code))
+        .map(course => ({
+            courseCode: course.code,
+            courseName: course.name,
+            creditHours: course.credit_hours
+        }));
+
+
+    res.json({
+      section: sectionDetails,
+      completedCourses,
+      pendingCourses
+    });
+
+  } catch (error) {
+    console.error('Get section record error:', error);
+    res.status(500).json({ error: 'Failed to retrieve section record' });
+  }
+};
+
 module.exports = {
   createProgram,
   getPrograms,
@@ -579,5 +665,6 @@ module.exports = {
   updateRoom,
   deleteRoom,
   getInstructors,
-  getDashboardStats
+  getDashboardStats,
+  getSectionRecord
 };
