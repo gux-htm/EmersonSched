@@ -96,10 +96,7 @@ export const roomAPI = {
 
 // Timing APIs
 export const timingAPI = {
-  setUniversityTimings: (data: any) => api.post('/timing/university-timings', data),
-  getUniversityTimings: () => api.get('/timing/university-timings'),
   getTimeSlots: (shift?: string, day_of_week?: string) => api.get('/timing/time-slots', { params: { shift, day_of_week } }),
-  resetTimeSlots: () => api.post('/timing/reset-time-slots'),
   generateSlots: (data: any) => api.post('/timing/generate-slots', data),
   setSlotSettings: (data: any) => api.post('/timing/slot-settings', data),
   getSlotSettings: () => api.get('/timing/slot-settings'),
