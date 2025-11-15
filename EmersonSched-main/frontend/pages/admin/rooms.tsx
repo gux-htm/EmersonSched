@@ -5,7 +5,17 @@ import { useRouter } from 'next/router';
 import { adminAPI, roomAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FiPlus, FiZap, FiMapPin } from 'react-icons/fi';
+import { FiPlus, FiZap, FiMapPin, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Rooms() {
   const { isAdmin } = useAuth();
@@ -16,7 +26,7 @@ export default function Rooms() {
   const [showForm, setShowForm] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [showAssignments, setShowAssignments] = useState(false);
-  
+
   const [roomForm, setRoomForm] = useState({
     name: '',
     type: 'lecture',
@@ -73,12 +83,10 @@ export default function Rooms() {
     try {
       setAutoAssigning(true);
       const response = await roomAPI.autoAssign(autoAssignForm);
-      
       const summary = response.data.summary;
       toast.success(
         `Auto-assignment complete: ${summary.assigned} assigned, ${summary.unassigned} unassigned, ${summary.conflicts} conflicts`
       );
-      
       if (showAssignments) {
         loadAssignments();
       }
@@ -112,8 +120,10 @@ export default function Rooms() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="spinner"></div>
+        <div className="space-y-6">
+          <Skeleton className="h-12 w-1/2" />
+          <Skeleton className="h-48" />
+          <Skeleton className="h-96" />
         </div>
       </Layout>
     );
@@ -123,400 +133,208 @@ export default function Rooms() {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Rooms Management</h1>
+          <h1 className="text-3xl font-bold">Rooms Management</h1>
           <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                setShowAssignments(!showAssignments);
-                if (!showAssignments) {
-                  loadAssignments();
-                }
-              }}
-              className="btn btn-secondary flex items-center space-x-2"
-            >
-              <FiMapPin /> <span>{showAssignments ? 'Hide' : 'View'} Assignments</span>
-            </button>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="btn btn-primary flex items-center space-x-2"
-            >
-              <FiPlus /> <span>Add Room</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="show-assignments">Show Assignments</Label>
+              <Switch id="show-assignments" checked={showAssignments} onCheckedChange={setShowAssignments} />
+            </div>
+            <Dialog open={showForm} onOpenChange={setShowForm}>
+              <DialogTrigger asChild>
+                <Button>
+                  <FiPlus className="mr-2" /> Add Room
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Room</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="roomName">Room Name</Label>
+                      <Input id="roomName" value={roomForm.name} onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })} placeholder="Room 101" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="roomType">Type</Label>
+                      <Select value={roomForm.type} onValueChange={(value) => setRoomForm({ ...roomForm, type: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lecture">Lecture Hall</SelectItem>
+                          <SelectItem value="lab">Lab</SelectItem>
+                          <SelectItem value="seminar">Seminar Room</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="capacity">Capacity</Label>
+                      <Input id="capacity" type="number" value={roomForm.capacity} onChange={(e) => setRoomForm({ ...roomForm, capacity: parseInt(e.target.value) })} min="10" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="building">Building</Label>
+                      <Input id="building" value={roomForm.building} onChange={(e) => setRoomForm({ ...roomForm, building: e.target.value })} placeholder="Main Block" required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Resources</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="projector" checked={roomForm.resources.projector} onCheckedChange={(checked) => setRoomForm({ ...roomForm, resources: { ...roomForm.resources, projector: !!checked } })} />
+                        <Label htmlFor="projector">Projector</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="whiteboard" checked={roomForm.resources.whiteboard} onCheckedChange={(checked) => setRoomForm({ ...roomForm, resources: { ...roomForm.resources, whiteboard: !!checked } })} />
+                        <Label htmlFor="whiteboard">Whiteboard</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="computers" checked={roomForm.resources.computers} onCheckedChange={(checked) => setRoomForm({ ...roomForm, resources: { ...roomForm.resources, computers: !!checked } })} />
+                        <Label htmlFor="computers">Computers</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="ac" checked={roomForm.resources.ac} onCheckedChange={(checked) => setRoomForm({ ...roomForm, resources: { ...roomForm.resources, ac: !!checked } })} />
+                        <Label htmlFor="ac">Air Conditioning</Label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+                    <Button type="submit">Create Room</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {/* Auto-Assign Section */}
-        <div className="card bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
-            <FiZap className="text-blue-500" /> Auto-Assign Rooms
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="label">Shift</label>
-              <select
-                value={autoAssignForm.shift}
-                onChange={(e) => setAutoAssignForm({ ...autoAssignForm, shift: e.target.value })}
-                className="input"
-              >
-                <option value="morning">Morning</option>
-                <option value="evening">Evening</option>
-              </select>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <FiZap />
+              <span>Auto-Assign Rooms</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0">
+            <div className="space-y-2">
+              <Label htmlFor="autoAssignShift">Shift</Label>
+              <Select value={autoAssignForm.shift} onValueChange={(value) => setAutoAssignForm({ ...autoAssignForm, shift: value })}>
+                <SelectTrigger id="autoAssignShift">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="morning">Morning</SelectItem>
+                  <SelectItem value="evening">Evening</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label className="label">Semester</label>
-              <input
-                type="text"
-                value={autoAssignForm.semester}
-                onChange={(e) => setAutoAssignForm({ ...autoAssignForm, semester: e.target.value })}
-                className="input"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="autoAssignSemester">Semester</Label>
+              <Input id="autoAssignSemester" value={autoAssignForm.semester} onChange={(e) => setAutoAssignForm({ ...autoAssignForm, semester: e.target.value })} />
             </div>
-            <div>
-              <label className="label">Policy</label>
-              <select
-                value={autoAssignForm.policy}
-                onChange={(e) => setAutoAssignForm({ ...autoAssignForm, policy: e.target.value })}
-                className="input"
-              >
-                <option value="evening-first">Evening First</option>
-                <option value="morning-first">Morning First</option>
-              </select>
+            <div className="space-y-2">
+              <Label htmlFor="autoAssignPolicy">Policy</Label>
+              <Select value={autoAssignForm.policy} onValueChange={(value) => setAutoAssignForm({ ...autoAssignForm, policy: value })}>
+                <SelectTrigger id="autoAssignPolicy">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="evening-first">Evening First</SelectItem>
+                  <SelectItem value="morning-first">Morning First</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-          <button
-            onClick={handleAutoAssign}
-            disabled={autoAssigning}
-            className="mt-4 btn btn-primary"
-          >
-            {autoAssigning ? 'Assigning...' : 'Auto-Assign Rooms'}
-          </button>
-        </div>
+            <Button onClick={handleAutoAssign} disabled={autoAssigning}>
+              {autoAssigning ? 'Assigning...' : 'Auto-Assign Rooms'}
+            </Button>
+          </CardContent>
+        </Card>
 
-        {/* Assignments Display */}
         {showAssignments && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="card"
-          >
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Room Assignments</h2>
-            {assignments.length === 0 ? (
-              <p className="text-gray-600">No assignments yet. Use auto-assign or assign manually.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Section</th>
-                      <th className="text-left p-2">Room</th>
-                      <th className="text-left p-2">Time Slot</th>
-                      <th className="text-left p-2">Semester</th>
-                      <th className="text-left p-2">Status</th>
-                      <th className="text-left p-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assignments.map((assignment) => (
-                      <tr key={assignment.id} className="border-b">
-                        <td className="p-2">{assignment.section_name}</td>
-                        <td className="p-2">
-                          <InlineRoomEditor
-                            assignment={assignment}
-                            rooms={rooms}
-                            onSaved={loadAssignments}
-                          />
-                        </td>
-                        <td className="p-2">{assignment.slot_label}</td>
-                        <td className="p-2">{assignment.semester}</td>
-                        <td className="p-2">
-                          <span className={`badge ${
-                            assignment.status === 'reserved' ? 'badge-success' : 'badge-secondary'
-                          }`}>
-                            {assignment.status}
-                          </span>
-                        </td>
-                        <td className="p-2">
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              // Refresh row if needed
-                              loadAssignments();
-                            }}
-                          >
-                            Refresh
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="card"
-          >
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Room</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="label">Room Name</label>
-                  <input
-                    type="text"
-                    value={roomForm.name}
-                    onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })}
-                    className="input"
-                    placeholder="Room 101"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">Type</label>
-                  <select
-                    value={roomForm.type}
-                    onChange={(e) => setRoomForm({ ...roomForm, type: e.target.value })}
-                    className="input"
-                  >
-                    <option value="lecture">Lecture Hall</option>
-                    <option value="lab">Lab</option>
-                    <option value="seminar">Seminar Room</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Capacity</label>
-                  <input
-                    type="number"
-                    value={roomForm.capacity}
-                    onChange={(e) => setRoomForm({ ...roomForm, capacity: parseInt(e.target.value) })}
-                    className="input"
-                    min="10"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">Building</label>
-                  <input
-                    type="text"
-                    value={roomForm.building}
-                    onChange={(e) => setRoomForm({ ...roomForm, building: e.target.value })}
-                    className="input"
-                    placeholder="Main Block"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="label">Resources</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={roomForm.resources.projector}
-                      onChange={(e) => setRoomForm({
-                        ...roomForm,
-                        resources: { ...roomForm.resources, projector: e.target.checked }
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <span>Projector</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={roomForm.resources.whiteboard}
-                      onChange={(e) => setRoomForm({
-                        ...roomForm,
-                        resources: { ...roomForm.resources, whiteboard: e.target.checked }
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <span>Whiteboard</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={roomForm.resources.computers}
-                      onChange={(e) => setRoomForm({
-                        ...roomForm,
-                        resources: { ...roomForm.resources, computers: e.target.checked }
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <span>Computers</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={roomForm.resources.ac}
-                      onChange={(e) => setRoomForm({
-                        ...roomForm,
-                        resources: { ...roomForm.resources, ac: e.target.checked }
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <span>Air Conditioning</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex space-x-2">
-                <button type="submit" className="btn btn-primary">Create Room</button>
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary">
-                  Cancel
-                </button>
-              </div>
-            </form>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Room Assignments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {assignments.length === 0 ? (
+                  <p className="text-muted-foreground">No assignments yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Section</TableHead>
+                        <TableHead>Room</TableHead>
+                        <TableHead>Time Slot</TableHead>
+                        <TableHead>Semester</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {assignments.map((assignment) => (
+                        <TableRow key={assignment.id}>
+                          <TableCell>{assignment.section_name}</TableCell>
+                          <TableCell>{assignment.room_name}</TableCell>
+                          <TableCell>{assignment.slot_label}</TableCell>
+                          <TableCell>{assignment.semester}</TableCell>
+                          <TableCell>{assignment.status}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </motion.div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {rooms.map((room, index) => {
-            const resources = typeof room.resources === 'string' 
-              ? JSON.parse(room.resources) 
-              : room.resources;
-            
+            const resources = typeof room.resources === 'string' ? JSON.parse(room.resources) : room.resources;
             return (
               <motion.div
                 key={room.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="card"
               >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-gray-900">{room.name}</h3>
-                    <span className={`badge ${
-                      room.type === 'lab' ? 'badge-info' : 
-                      room.type === 'seminar' ? 'badge-warning' : 'badge-success'
-                    }`}>
-                      {room.type}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={async () => {
-                        const newName = prompt('Rename room', room.name);
-                        if (!newName) return;
-                        try {
-                          await adminAPI.updateRoom(room.id, { ...room, name: newName });
-                          toast.success('Room updated');
-                          loadRooms();
-                        } catch (e) {
-                          toast.error('Failed to update room');
-                        }
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-error btn-sm"
-                      onClick={async () => {
-                        if (!confirm('Delete this room?')) return;
-                        try {
-                          await adminAPI.deleteRoom(room.id);
-                          toast.success('Room deleted');
-                          loadRooms();
-                        } catch (e) {
-                          toast.error('Failed to delete room');
-                        }
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-gray-600">Building</p>
-                      <p className="font-medium">{room.building}</p>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>{room.name}</CardTitle>
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="icon" onClick={() => {/* Edit room */}}><FiEdit /></Button>
+                      <Button variant="destructive" size="icon" onClick={() => {/* Delete room */}}><FiTrash2 /></Button>
                     </div>
-                    <div>
-                      <p className="text-gray-600">Capacity</p>
-                      <p className="font-medium">{room.capacity} students</p>
-                    </div>
-                  </div>
-
-                  {resources && (
-                    <div>
-                      <p className="text-gray-600 text-sm mb-2">Resources:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {resources.projector && <span className="badge badge-info">Projector</span>}
-                        {resources.whiteboard && <span className="badge badge-success">Whiteboard</span>}
-                        {resources.computers && <span className="badge badge-warning">Computers</span>}
-                        {resources.ac && <span className="badge badge-error">AC</span>}
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Building</p>
+                        <p className="font-medium">{room.building}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Capacity</p>
+                        <p className="font-medium">{room.capacity} students</p>
                       </div>
                     </div>
-                  )}
-                </div>
+                    {resources && (
+                      <div>
+                        <p className="text-muted-foreground text-sm mb-2">Resources:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {resources.projector && <Badge>Projector</Badge>}
+                          {resources.whiteboard && <Badge>Whiteboard</Badge>}
+                          {resources.computers && <Badge>Computers</Badge>}
+                          {resources.ac && <Badge>AC</Badge>}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </motion.div>
             );
           })}
         </div>
       </div>
     </Layout>
-  );
-}
-
-function InlineRoomEditor({ assignment, rooms, onSaved }: { assignment: any; rooms: any[]; onSaved: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [roomId, setRoomId] = useState<number>(assignment.room_id);
-  const [saving, setSaving] = useState(false);
-
-  const availableRooms = rooms; // Show all; backend will validate clashes
-
-  const save = async () => {
-    try {
-      setSaving(true);
-      await roomAPI.editAssignment(assignment.id, { room_id: roomId, time_slot_id: assignment.time_slot_id });
-      setEditing(false);
-      onSaved();
-    } catch (error: any) {
-      const msg = error.response?.data?.error || 'Failed to update assignment';
-      if (error.response?.status === 409) {
-        // Clash message
-        alert('Clash of resource detected: Room already booked for that slot.');
-      } else {
-        alert(msg);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!editing) {
-    return (
-      <div className="flex items-center space-x-2">
-        <span>{assignment.room_name}</span>
-        <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>Edit</button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center space-x-2">
-      <select
-        className="input"
-        value={roomId}
-        onChange={(e) => setRoomId(parseInt(e.target.value))}
-      >
-        {availableRooms.map((r) => (
-          <option key={r.id} value={r.id}>
-            {r.name} (cap {r.capacity})
-          </option>
-        ))}
-      </select>
-      <button className="btn btn-primary btn-sm" disabled={saving} onClick={save}>
-        {saving ? 'Saving...' : 'Save'}
-      </button>
-      <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>Cancel</button>
-    </div>
   );
 }

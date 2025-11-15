@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/router';
@@ -6,6 +6,14 @@ import { adminAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { FiPlus, FiEdit, FiTrash2, FiChevronsRight, FiCornerRightUp } from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Courses() {
   const { isAdmin } = useAuth();
@@ -28,7 +36,7 @@ export default function Courses() {
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [selectedMajor, setSelectedMajor] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const [courseForm, setCourseForm] = useState({
     name: '',
     code: '',
@@ -85,16 +93,15 @@ export default function Courses() {
 
   const loadSections = async () => {
     try {
-        const sectionsRes = await adminAPI.getSections({ page: sectionPage, limit: sectionLimit });
-        setSections(sectionsRes.data.data);
-        setSectionTotalPages(sectionsRes.data.totalPages);
-        setSectionTotalRecords(sectionsRes.data.totalRecords);
+      const sectionsRes = await adminAPI.getSections({ page: sectionPage, limit: sectionLimit });
+      setSections(sectionsRes.data.data);
+      setSectionTotalPages(sectionsRes.data.totalPages);
+      setSectionTotalRecords(sectionsRes.data.totalRecords);
     } catch (error) {
-        console.error('Failed to load sections:', error);
-        toast.error('Failed to load sections');
+      console.error('Failed to load sections:', error);
+      toast.error('Failed to load sections');
     }
   };
-
 
   const handleCourseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +130,7 @@ export default function Courses() {
       credit_hours: course.credit_hours,
       type: course.type,
       major_ids: majors.filter(m => course.major_names.includes(m.name)).map(m => m.id),
-      applies_to_all_programs: false, // This would need more complex logic to determine
+      applies_to_all_programs: false,
     });
     setShowCourseForm(true);
   };
@@ -138,7 +145,7 @@ export default function Courses() {
       toast.error(error.response?.data?.error || 'Failed to delete course');
     }
   };
-  
+
   useEffect(() => {
     loadCourses();
   }, [coursePage, courseLimit]);
@@ -148,146 +155,191 @@ export default function Courses() {
     loadCourses();
   };
 
-  if (loading) return <Layout><div className="spinner"></div></Layout>;
+  if (loading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <Skeleton className="h-12 w-1/2" />
+          <Skeleton className="h-96" />
+          <Skeleton className="h-96" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Course Library & Sections</h1>
 
-        {/* Course Library Section */}
-        <div className="card">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Course Library</h2>
-            <button onClick={() => setShowCourseForm(true)} className="btn btn-primary"><FiPlus /> Add Course</button>
-          </div>
-
-          {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <select value={selectedProgram} onChange={e => setSelectedProgram(e.target.value)} className="input">
-              <option value="">All Programs</option>
-              {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <select value={selectedMajor} onChange={e => setSelectedMajor(e.target.value)} className="input">
-              <option value="">All Majors</option>
-              {majors.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name or code" className="input" />
-            <button onClick={handleFilterChange} className="btn btn-secondary">Apply Filters</button>
-          </div>
-
-          {showCourseForm && (
-            <motion.form onSubmit={handleCourseSubmit} className="bg-gray-50 p-4 rounded-lg mb-4 space-y-4">
-              {/* Form fields for creating/editing a course */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Course Name" value={courseForm.name} onChange={e => setCourseForm({...courseForm, name: e.target.value})} className="input" required />
-                <input type="text" placeholder="Course Code" value={courseForm.code} onChange={e => setCourseForm({...courseForm, code: e.target.value})} className="input" required />
-                <select value={courseForm.credit_hours} onChange={e => setCourseForm({...courseForm, credit_hours: e.target.value})} className="input">
-                    <option value="2+0">2+0 (Theory only)</option>
-                    <option value="3+0">3+0 (Theory only)</option>
-                    <option value="2+1">2+1 (Theory + Lab)</option>
-                    <option value="3+1">3+1 (Theory + Lab)</option>
-                    <option value="0+1">0+1 (Lab only)</option>
-                </select>
-                <select value={courseForm.type} onChange={e => setCourseForm({...courseForm, type: e.target.value})} className="input">
-                    <option value="theory">Theory</option>
-                    <option value="lab">Lab</option>
-                    <option value="both">Both</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Majors</label>
-                <select multiple value={courseForm.major_ids} onChange={e => setCourseForm({...courseForm, major_ids: Array.from(e.target.selectedOptions, option => option.value)})} className="input h-32">
-                  {majors.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center">
-                <input type="checkbox" id="all_programs" checked={courseForm.applies_to_all_programs} onChange={e => setCourseForm({...courseForm, applies_to_all_programs: e.target.checked})} className="mr-2" />
-                <label htmlFor="all_programs">Applies to all BS programs</label>
-              </div>
-              <div className="flex space-x-2">
-                <button type="submit" className="btn btn-primary">{editingCourse ? 'Update' : 'Create'}</button>
-                <button type="button" onClick={() => { setShowCourseForm(false); setEditingCourse(null); }} className="btn btn-secondary">Cancel</button>
-              </div>
-            </motion.form>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Credit Hours</th>
-                  <th>Type</th>
-                  <th>Majors</th>
-                  <th>Programs</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Course Library</CardTitle>
+            <Dialog open={showCourseForm} onOpenChange={setShowCourseForm}>
+              <DialogTrigger asChild>
+                <Button>
+                  <FiPlus className="mr-2" /> Add Course
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingCourse ? 'Edit Course' : 'Add New Course'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCourseSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="courseName">Course Name</Label>
+                      <Input id="courseName" value={courseForm.name} onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })} placeholder="Introduction to AI" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="courseCode">Course Code</Label>
+                      <Input id="courseCode" value={courseForm.code} onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })} placeholder="CS-101" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="creditHours">Credit Hours</Label>
+                      <Select value={courseForm.credit_hours} onValueChange={(value) => setCourseForm({ ...courseForm, credit_hours: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2+0">2+0 (Theory only)</SelectItem>
+                          <SelectItem value="3+0">3+0 (Theory only)</SelectItem>
+                          <SelectItem value="2+1">2+1 (Theory + Lab)</SelectItem>
+                          <SelectItem value="3+1">3+1 (Theory + Lab)</SelectItem>
+                          <SelectItem value="0+1">0+1 (Lab only)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="courseType">Type</Label>
+                      <Select value={courseForm.type} onValueChange={(value) => setCourseForm({ ...courseForm, type: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="theory">Theory</SelectItem>
+                          <SelectItem value="lab">Lab</SelectItem>
+                          <SelectItem value="both">Both</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Majors</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select majors" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {majors.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input type="checkbox" id="all_programs" checked={courseForm.applies_to_all_programs} onChange={e => setCourseForm({ ...courseForm, applies_to_all_programs: e.target.checked })} />
+                    <Label htmlFor="all_programs">Applies to all BS programs</Label>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => { setShowCourseForm(false); setEditingCourse(null); }}>Cancel</Button>
+                    <Button type="submit">{editingCourse ? 'Update' : 'Create'}</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <Select value={selectedProgram} onValueChange={setSelectedProgram}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Programs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Programs</SelectItem>
+                  {programs.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={selectedMajor} onValueChange={setSelectedMajor}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Majors" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Majors</SelectItem>
+                  {majors.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name or code" />
+              <Button onClick={handleFilterChange}>Apply Filters</Button>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Credit Hours</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Majors</TableHead>
+                  <TableHead>Programs</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {courses.map(course => (
-                  <tr key={course.id}>
-                    <td>{course.code}</td>
-                    <td>{course.name}</td>
-                    <td>{course.credit_hours}</td>
-                    <td>{course.type}</td>
-                    <td>{course.major_names}</td>
-                    <td>{course.program_names}</td>
-                    <td>
+                  <TableRow key={course.id}>
+                    <TableCell>{course.code}</TableCell>
+                    <TableCell>{course.name}</TableCell>
+                    <TableCell>{course.credit_hours}</TableCell>
+                    <TableCell>{course.type}</TableCell>
+                    <TableCell>{course.major_names}</TableCell>
+                    <TableCell>{course.program_names}</TableCell>
+                    <TableCell>
                       <div className="flex space-x-2">
-                        <button onClick={() => handleEditCourse(course)} className="btn btn-sm"><FiEdit /></button>
-                        <button onClick={() => handleDeleteCourse(course.id)} className="btn btn-sm btn-error"><FiTrash2 /></button>
+                        <Button variant="outline" size="icon" onClick={() => handleEditCourse(course)}><FiEdit /></Button>
+                        <Button variant="destructive" size="icon" onClick={() => handleDeleteCourse(course.id)}><FiTrash2 /></Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          {/* Pagination for courses */}
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-        {/* Sections Section */}
-        <div className="card">
-          <h2 className="text-xl font-bold mb-4">Sections</h2>
-           <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Section</th>
-                  <th>Major</th>
-                  <th>Semester</th>
-                  <th>Students</th>
-                  <th>Shift</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+        <Card>
+          <CardHeader>
+            <CardTitle>Sections</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Section</TableHead>
+                  <TableHead>Major</TableHead>
+                  <TableHead>Semester</TableHead>
+                  <TableHead>Students</TableHead>
+                  <TableHead>Shift</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {sections.map((section) => (
-                  <tr key={section.id}>
-                    <td className="font-medium">{section.name}</td>
-                    <td>{section.major_name}</td>
-                    <td>{section.semester}</td>
-                    <td>{section.student_strength}</td>
-                    <td className="capitalize">{section.shift}</td>
-                    <td>
+                  <TableRow key={section.id}>
+                    <TableCell className="font-medium">{section.name}</TableCell>
+                    <TableCell>{section.major_name}</TableCell>
+                    <TableCell>{section.semester}</TableCell>
+                    <TableCell>{section.student_strength}</TableCell>
+                    <TableCell className="capitalize">{section.shift}</TableCell>
+                    <TableCell>
                       <div className="flex items-center space-x-2">
-                        <button className="btn btn-secondary btn-sm flex items-center space-x-1" title="Assign Courses">
-                          <FiChevronsRight size={14} /> <span>Assign Courses</span>
-                        </button>
-                        <button className="btn btn-secondary btn-sm flex items-center space-x-1" title="Promote Section">
-                          <FiCornerRightUp size={14} /> <span>Promote</span>
-                        </button>
+                        <Button variant="outline" size="sm" className="flex items-center space-x-1"><FiChevronsRight size={14} /><span>Assign Courses</span></Button>
+                        <Button variant="outline" size="sm" className="flex items-center space-x-1"><FiCornerRightUp size={14} /><span>Promote</span></Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          {/* Pagination for sections */}
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

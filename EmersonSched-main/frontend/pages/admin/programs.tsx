@@ -5,7 +5,15 @@ import { useRouter } from 'next/router';
 import { adminAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Programs() {
   const { isAdmin } = useAuth();
@@ -15,7 +23,7 @@ export default function Programs() {
   const [loading, setLoading] = useState(true);
   const [showProgramForm, setShowProgramForm] = useState(false);
   const [showMajorForm, setShowMajorForm] = useState(false);
-  
+
   const [programForm, setProgramForm] = useState({
     name: '',
     code: '',
@@ -83,8 +91,10 @@ export default function Programs() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="spinner"></div>
+        <div className="space-y-6">
+          <Skeleton className="h-12 w-1/2" />
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
         </div>
       </Layout>
     );
@@ -94,205 +104,207 @@ export default function Programs() {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Programs & Majors</h1>
+          <h1 className="text-3xl font-bold">Programs & Majors</h1>
         </div>
 
-        {/* Programs Section */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Programs</h2>
-            <button
-              onClick={() => setShowProgramForm(!showProgramForm)}
-              className="btn btn-primary flex items-center space-x-2"
-            >
-              <FiPlus /> <span>Add Program</span>
-            </button>
-          </div>
-
-          {showProgramForm && (
-            <motion.form
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              onSubmit={handleProgramSubmit}
-              className="bg-gray-50 p-4 rounded-lg mb-4 space-y-4"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Program Name</label>
-                  <input
-                    type="text"
-                    value={programForm.name}
-                    onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })}
-                    className="input"
-                    placeholder="BS Computer Science"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">Code</label>
-                  <input
-                    type="text"
-                    value={programForm.code}
-                    onChange={(e) => setProgramForm({ ...programForm, code: e.target.value })}
-                    className="input"
-                    placeholder="BSCS"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">System Type</label>
-                  <select
-                    value={programForm.system_type}
-                    onChange={(e) => setProgramForm({ ...programForm, system_type: e.target.value })}
-                    className="input"
-                  >
-                    <option value="semester">Semester</option>
-                    <option value="annual">Annual</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Total Semesters</label>
-                  <input
-                    type="number"
-                    value={programForm.total_semesters}
-                    onChange={(e) => setProgramForm({ ...programForm, total_semesters: parseInt(e.target.value) })}
-                    className="input"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">Shift</label>
-                  <select
-                    value={programForm.shift}
-                    onChange={(e) => setProgramForm({ ...programForm, shift: e.target.value })}
-                    className="input"
-                  >
-                    <option value="morning">Morning</option>
-                    <option value="evening">Evening</option>
-                    <option value="weekend">Weekend</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button type="submit" className="btn btn-primary">Create Program</button>
-                <button type="button" onClick={() => setShowProgramForm(false)} className="btn btn-secondary">Cancel</button>
-              </div>
-            </motion.form>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Code</th>
-                  <th>System</th>
-                  <th>Semesters</th>
-                  <th>Shift</th>
-                </tr>
-              </thead>
-              <tbody>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Programs</CardTitle>
+            <Dialog open={showProgramForm} onOpenChange={setShowProgramForm}>
+              <DialogTrigger asChild>
+                <Button>
+                  <FiPlus className="mr-2" /> Add Program
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Program</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleProgramSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="programName">Program Name</Label>
+                      <Input
+                        id="programName"
+                        value={programForm.name}
+                        onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })}
+                        placeholder="BS Computer Science"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="programCode">Code</Label>
+                      <Input
+                        id="programCode"
+                        value={programForm.code}
+                        onChange={(e) => setProgramForm({ ...programForm, code: e.target.value })}
+                        placeholder="BSCS"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="systemType">System Type</Label>
+                      <Select
+                        value={programForm.system_type}
+                        onValueChange={(value) => setProgramForm({ ...programForm, system_type: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="semester">Semester</SelectItem>
+                          <SelectItem value="annual">Annual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="totalSemesters">Total Semesters</Label>
+                      <Input
+                        id="totalSemesters"
+                        type="number"
+                        value={programForm.total_semesters}
+                        onChange={(e) => setProgramForm({ ...programForm, total_semesters: parseInt(e.target.value) })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="shift">Shift</Label>
+                      <Select
+                        value={programForm.shift}
+                        onValueChange={(value) => setProgramForm({ ...programForm, shift: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="morning">Morning</SelectItem>
+                          <SelectItem value="evening">Evening</SelectItem>
+                          <SelectItem value="weekend">Weekend</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setShowProgramForm(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">Create Program</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>System</TableHead>
+                  <TableHead>Semesters</TableHead>
+                  <TableHead>Shift</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {programs.map((program) => (
-                  <tr key={program.id}>
-                    <td className="font-medium">{program.name}</td>
-                    <td>{program.code}</td>
-                    <td className="capitalize">{program.system_type}</td>
-                    <td>{program.total_semesters}</td>
-                    <td className="capitalize">{program.shift}</td>
-                  </tr>
+                  <TableRow key={program.id}>
+                    <TableCell className="font-medium">{program.name}</TableCell>
+                    <TableCell>{program.code}</TableCell>
+                    <TableCell className="capitalize">{program.system_type}</TableCell>
+                    <TableCell>{program.total_semesters}</TableCell>
+                    <TableCell className="capitalize">{program.shift}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-        {/* Majors Section */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Majors</h2>
-            <button
-              onClick={() => setShowMajorForm(!showMajorForm)}
-              className="btn btn-primary flex items-center space-x-2"
-            >
-              <FiPlus /> <span>Add Major</span>
-            </button>
-          </div>
-
-          {showMajorForm && (
-            <motion.form
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              onSubmit={handleMajorSubmit}
-              className="bg-gray-50 p-4 rounded-lg mb-4 space-y-4"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="label">Program</label>
-                  <select
-                    value={majorForm.program_id}
-                    onChange={(e) => setMajorForm({ ...majorForm, program_id: e.target.value })}
-                    className="input"
-                    required
-                  >
-                    <option value="">Select Program</option>
-                    {programs.map((program) => (
-                      <option key={program.id} value={program.id}>
-                        {program.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Major Name</label>
-                  <input
-                    type="text"
-                    value={majorForm.name}
-                    onChange={(e) => setMajorForm({ ...majorForm, name: e.target.value })}
-                    className="input"
-                    placeholder="Artificial Intelligence"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">Code</label>
-                  <input
-                    type="text"
-                    value={majorForm.code}
-                    onChange={(e) => setMajorForm({ ...majorForm, code: e.target.value })}
-                    className="input"
-                    placeholder="AI"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button type="submit" className="btn btn-primary">Create Major</button>
-                <button type="button" onClick={() => setShowMajorForm(false)} className="btn btn-secondary">Cancel</button>
-              </div>
-            </motion.form>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Major Name</th>
-                  <th>Code</th>
-                  <th>Program</th>
-                </tr>
-              </thead>
-              <tbody>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Majors</CardTitle>
+            <Dialog open={showMajorForm} onOpenChange={setShowMajorForm}>
+              <DialogTrigger asChild>
+                <Button>
+                  <FiPlus className="mr-2" /> Add Major
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Major</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleMajorSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="program">Program</Label>
+                      <Select
+                        value={majorForm.program_id}
+                        onValueChange={(value) => setMajorForm({ ...majorForm, program_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Program" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {programs.map((program) => (
+                            <SelectItem key={program.id} value={program.id.toString()}>
+                              {program.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="majorName">Major Name</Label>
+                      <Input
+                        id="majorName"
+                        value={majorForm.name}
+                        onChange={(e) => setMajorForm({ ...majorForm, name: e.target.value })}
+                        placeholder="Artificial Intelligence"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="majorCode">Code</Label>
+                      <Input
+                        id="majorCode"
+                        value={majorForm.code}
+                        onChange={(e) => setMajorForm({ ...majorForm, code: e.target.value })}
+                        placeholder="AI"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setShowMajorForm(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">Create Major</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Major Name</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Program</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {majors.map((major) => (
-                  <tr key={major.id}>
-                    <td className="font-medium">{major.name}</td>
-                    <td>{major.code}</td>
-                    <td>{major.program_name}</td>
-                  </tr>
+                  <TableRow key={major.id}>
+                    <TableCell className="font-medium">{major.name}</TableCell>
+                    <TableCell>{major.code}</TableCell>
+                    <TableCell>{major.program_name}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
