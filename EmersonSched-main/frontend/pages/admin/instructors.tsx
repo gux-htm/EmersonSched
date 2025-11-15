@@ -6,6 +6,10 @@ import { adminAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { FiMail, FiUser } from 'react-icons/fi';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Instructors() {
   const { isAdmin } = useAuth();
@@ -36,14 +40,18 @@ export default function Instructors() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="spinner"></div>
+        <div className="space-y-6">
+          <Skeleton className="h-12 w-1/2" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-48" />
+            ))}
+          </div>
         </div>
       </Layout>
     );
   }
 
-  // Helper: safely extract metadata as object
   const parseMetadata = (metadata: any) => {
     if (!metadata) return {};
     if (typeof metadata === 'string') {
@@ -59,20 +67,18 @@ export default function Instructors() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Instructors</h1>
-            <p className="text-gray-600 mt-1">{instructors.length} approved instructor(s)</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold">Instructors</h1>
+          <p className="text-muted-foreground mt-1">{instructors.length} approved instructor(s)</p>
         </div>
 
         {instructors.length === 0 ? (
-          <div className="card text-center py-12">
-            <p className="text-gray-600 text-lg">No instructors registered yet</p>
-            <p className="text-gray-500 text-sm mt-2">
+          <Card className="text-center py-12">
+            <p className="text-muted-foreground text-lg">No instructors registered yet</p>
+            <p className="text-muted-foreground text-sm mt-2">
               Instructors need to register and be approved first
             </p>
-          </div>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {instructors.map((instructor, index) => {
@@ -83,40 +89,41 @@ export default function Instructors() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="card"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-primary p-3 rounded-full text-white">
-                        <FiUser size={24} />
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center space-x-3">
+                        <Avatar>
+                          <AvatarImage src={`https://ui-avatars.com/api/?name=${instructor.name}&background=random`} />
+                          <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <CardTitle>{instructor.name}</CardTitle>
+                          <Badge>Instructor</Badge>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">{instructor.name}</h3>
-                        <span className="badge badge-success text-xs">Instructor</span>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <FiMail size={16} />
+                        <span>{instructor.email}</span>
                       </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <FiMail size={16} />
-                      <span>{instructor.email}</span>
-                    </div>
-
-                    {instructor.department && (
-                      <div>
-                        <p className="text-xs text-gray-600">Department</p>
-                        <p className="font-medium text-gray-900">{instructor.department}</p>
-                      </div>
-                    )}
-
-                    {metadata && (
-                      <div className="pt-2 border-t">
-                        <p className="text-xs text-gray-600 mb-1">Specialization</p>
-                        <p className="text-sm text-gray-900">
-                          {metadata.specialization || 'Not specified'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                      {instructor.department && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Department</p>
+                          <p className="font-medium">{instructor.department}</p>
+                        </div>
+                      )}
+                      {metadata && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground mb-1">Specialization</p>
+                          <p className="text-sm">
+                            {metadata.specialization || 'Not specified'}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </motion.div>
               );
             })}

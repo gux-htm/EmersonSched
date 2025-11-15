@@ -412,7 +412,10 @@ CREATE TABLE `users` (
   `department` varchar(100) DEFAULT NULL,
   `metadata` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`metadata`)),
   `created_at` timestamp NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `resetOTP` varchar(255) DEFAULT NULL,
+  `resetOTPExpiry` datetime DEFAULT NULL,
+  `otpAttempts` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf16le COLLATE=utf16le_general_ci;
 
 --

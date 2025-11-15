@@ -1,29 +1,42 @@
-import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FiMail, FiLock } from 'react-icons/fi';
+import { FiLock } from 'react-icons/fi';
+import { authAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function Login() {
-  const [email, setEmail] = useState('');
+export default function ResetPassword() {
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const router = useRouter();
+  const { email } = router.query;
+
+  useEffect(() => {
+    if (!email) {
+      router.push('/forgot-password');
+      toast.error('Something went wrong. Please try again.');
+    }
+  }, [email, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
     setLoading(true);
 
     try {
-      await login(email, password);
-      toast.success('Login successful!');
+      await authAPI.resetPassword({ email, password });
+      toast.success('Password reset successfully!');
+      router.push('/login');
     } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+      toast.error(error.response?.data?.error || 'An error occurred.');
     } finally {
       setLoading(false);
     }
@@ -40,29 +53,16 @@ export default function Login() {
         <Card>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-bold text-primary">
-              🎓 EmersonSched
+              Reset Password
             </CardTitle>
+            <p className="text-center text-muted-foreground">
+              Enter your new password.
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <FiMail className="absolute left-3 top-3 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    placeholder="your.email@example.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">New Password</Label>
                 <div className="relative">
                   <FiLock className="absolute left-3 top-3 text-muted-foreground" />
                   <Input
@@ -76,29 +76,26 @@ export default function Login() {
                   />
                 </div>
               </div>
-
-              <div className="flex items-center justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Forgot Password?
-                </Link>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <div className="relative">
+                  <FiLock className="absolute left-3 top-3 text-muted-foreground" />
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
               </div>
 
               <Button type="submit" disabled={loading} className="w-full">
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? 'Resetting...' : 'Reset Password'}
               </Button>
             </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/register" className="text-primary font-semibold hover:underline">
-                  Register here
-                </Link>
-              </p>
-            </div>
           </CardContent>
         </Card>
       </motion.div>

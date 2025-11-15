@@ -10,4 +10,12 @@ router.get('/profile', auth, authController.getProfile);
 router.get('/pending-registrations', auth, isAdmin, authController.getPendingRegistrations);
 router.post('/update-registration-status', auth, isAdmin, authController.updateRegistrationStatus);
 
+// Password Reset
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/verify-otp', authController.verifyOtp);
+router.post('/reset-password', authController.resetPassword);
+
+// Update Password
+router.post('/update-password', auth, authController.updatePassword);
+
 module.exports = router;

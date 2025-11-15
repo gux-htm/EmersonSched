@@ -46,6 +46,10 @@ export const authAPI = {
   getProfile: () => api.get('/auth/profile'),
   getPendingRegistrations: () => api.get('/auth/pending-registrations'),
   updateRegistrationStatus: (data: any) => api.post('/auth/update-registration-status', data),
+  forgotPassword: (data: any) => api.post('/auth/forgot-password', data),
+  verifyOtp: (data: any) => api.post('/auth/verify-otp', data),
+  resetPassword: (data: any) => api.post('/auth/reset-password', data),
+  updatePassword: (data: any) => api.post('/auth/update-password', data),
 };
 
 // Admin APIs

@@ -1,29 +1,31 @@
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FiMail, FiLock } from 'react-icons/fi';
+import { FiMail, FiUser } from 'react-icons/fi';
+import { authAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function Login() {
+export default function ForgotPassword() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await login(email, password);
-      toast.success('Login successful!');
+      await authAPI.forgotPassword({ email, name });
+      toast.success('An OTP has been sent to your email.');
+      router.push(`/verify-otp?email=${email}`);
     } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+      toast.error(error.response?.data?.error || 'An error occurred.');
     } finally {
       setLoading(false);
     }
@@ -40,11 +42,29 @@ export default function Login() {
         <Card>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-bold text-primary">
-              🎓 EmersonSched
+              Forgot Password
             </CardTitle>
+            <p className="text-center text-muted-foreground">
+              Enter your details to receive an OTP.
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <div className="relative">
+                  <FiUser className="absolute left-3 top-3 text-muted-foreground" />
+                  <Input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-10"
+                    placeholder="Your Full Name"
+                    required
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -61,41 +81,16 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <FiLock className="absolute left-3 top-3 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-
               <Button type="submit" disabled={loading} className="w-full">
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? 'Sending...' : 'Send OTP'}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/register" className="text-primary font-semibold hover:underline">
-                  Register here
+                Remember your password?{' '}
+                <Link href="/login" className="text-primary font-semibold hover:underline">
+                  Login here
                 </Link>
               </p>
             </div>
