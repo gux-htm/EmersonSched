@@ -506,7 +506,6 @@ const resetTimetable = async (req, res) => {
       await db.query('DELETE FROM blocks');
       await db.query('DELETE FROM course_requests');
       await db.query('DELETE FROM time_slots');
-      await db.query('UPDATE university_timings SET is_active = FALSE');
     }
     
     res.json({ message: `Timetable reset (${type}) completed successfully` });

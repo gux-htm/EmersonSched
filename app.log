@@ -1,0 +1,25 @@
+
+> emersonsched@1.0.0 dev
+> concurrently "npm run dev:backend" "npm run dev:frontend"
+
+[0]
+[0] > emersonsched@1.0.0 dev:backend
+[0] > cd backend && npm run dev
+[0]
+[1]
+[1] > emersonsched@1.0.0 dev:frontend
+[1] > cd frontend && npm run dev
+[1]
+[1]
+[1] > emersonsched-frontend@1.0.0 dev
+[1] > next dev
+[1]
+[0]
+[0] > emersonsched-backend@1.0.0 dev
+[0] > nodemon server.js
+[0]
+[0] [33m[nodemon] 3.1.11[39m
+[0] [33m[nodemon] to restart at any time, enter `rs`[39m
+[0] [33m[nodemon] watching path(s): *.*[39m
+[0] [33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[0] [32m[nodemon] starting `node server.js`[39m
